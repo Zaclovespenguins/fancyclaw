@@ -3,7 +3,27 @@
 ## Context
 OpenClaw's official iOS app works but feels utilitarian. FancyClaw is a personal/TestFlight iPhone app that talks to a single OpenClaw Gateway as an **operator** (chat client, not a device node), with UI inspired by the Claude and Meta Muse iOS apps and a codebase that reads like Apple sample code: SwiftUI-first, Swift 6 strict concurrency, Observation, SwiftData, CryptoKit, Network.framework, App Intents, WidgetKit/ActivityKit, Swift Testing. There is one third-party dependency: **[Textual](https://github.com/gonzalezreal/textual)**, for Markdown rendering. SwiftUI has no native block-level Markdown renderer; `AttributedString(markdown:)` handles inline styles only.
 
-Working directory `/Users/server/projects/fancyclaw` is empty (greenfield, not yet a git repo).
+Working directory: `/Users/server/projects/fancyclaw`. A git repo on `main`, no remote; it holds only this plan and the XcodeBuildMCP config so far.
+
+## Environment & handoff notes (read before starting)
+Checked on 2026-09-29.
+
+**Project settings**
+- Bundle ID: `com.zacisnotacompany.fancyclaw`. The widget extension is `com.zacisnotacompany.fancyclaw.widgets`, and the App Group is `group.com.zacisnotacompany.fancyclaw`.
+- Development team: `NWV8LZ45D5`. Unverified: the owner believes it's named "Zachary Reyes", but it couldn't be confirmed locally and no signing certificate exists yet. If Xcode shows it as a **Personal Team**, App Groups and TestFlight won't work, so flag that before Slice 10.
+- Simulator: **iPhone 18 Pro, iOS 27.0**, the only runtime installed. Xcode 27.2, iOS 27.2 SDK, Swift 6.4, deployment target iOS 26. Simulator builds need no signing.
+
+**Tooling**
+- XcodeBuildMCP **2.7.0** runs via `npx xcodebuildmcp@latest mcp`. Its workflows are set in `.xcodebuildmcp/config.yaml`: simulator, project-scaffolding, ui-automation, debugging, swift-package.
+- Before Slice 0, confirm that `scaffold_ios_project` and the UI-automation tools (tap/swipe) are available. If only the default ~24 tools show up, ask the owner to restart XcodeBuildMCP from `/mcp` in the session.
+- Don't upgrade to MobileBuildMCP 2.7.1 without asking. It's a rename, and the config would move to `.mobilebuildmcp/`.
+- `xcode-select` points at `/Applications/Xcode.app/Contents/Developer`, and first-launch setup is done.
+- Also installed: the `openclaw` CLI **2026.9.6**, the same version the plan targets; pnpm and Node 26, for generating protocol schema fixtures; and git, configured.
+
+**Cautions**
+- **Low disk space:** about 5.8 GB free. If a build fails with "No space left on device", stop and tell the owner. Don't delete caches, DerivedData or simulators on your own.
+- **A real OpenClaw Gateway is running on `127.0.0.1:18789`**, likely with the owner's real sessions. Never point tests at it. The `.live` tests need a separate throwaway Gateway (different `--port` and state dir, test token in an uncommitted env file); ask before starting one.
+- Never commit `.claude/settings.local.json` (already git-ignored). Commit after each slice, and don't push or add a remote.
 
 ### Decisions (from Q&A)
 | Topic | Decision |
