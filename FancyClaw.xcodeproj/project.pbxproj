@@ -13,6 +13,7 @@
 		FC0000000000000000000053 /* ChatCore in Frameworks */ = {isa = PBXBuildFile; productRef = FC0000000000000000000073 /* ChatCore */; };
 		FC0000000000000000000054 /* Persistence in Frameworks */ = {isa = PBXBuildFile; productRef = FC0000000000000000000074 /* Persistence */; };
 		FC0000000000000000000055 /* DesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = FC0000000000000000000075 /* DesignSystem */; };
+		FC0000000000000000000056 /* TestSupport in Frameworks */ = {isa = PBXBuildFile; productRef = FC0000000000000000000076 /* TestSupport */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -86,6 +87,7 @@
 				FC0000000000000000000053 /* ChatCore in Frameworks */,
 				FC0000000000000000000054 /* Persistence in Frameworks */,
 				FC0000000000000000000055 /* DesignSystem in Frameworks */,
+				FC0000000000000000000056 /* TestSupport in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -163,6 +165,7 @@
 				FC0000000000000000000073 /* ChatCore */,
 				FC0000000000000000000074 /* Persistence */,
 				FC0000000000000000000075 /* DesignSystem */,
+				FC0000000000000000000076 /* TestSupport */,
 			);
 			productName = FancyClaw;
 			productReference = FC0000000000000000000020 /* FancyClaw.app */;
@@ -646,6 +649,10 @@
 		FC0000000000000000000075 /* DesignSystem */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = DesignSystem;
+		};
+		FC0000000000000000000076 /* TestSupport */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = TestSupport;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

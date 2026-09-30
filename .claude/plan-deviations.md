@@ -56,3 +56,16 @@ Where the implementation departs from `PLAN.md`, or settles something the plan l
 
 ### Verification
 - Warning-free integrated app/widget build; full test plan **106 passed, 0 failed**. Recovery tests cover bounded backoff, tick timeout, sequence gaps/duplicates, shutdown delay, foreground reconnect, and a dropped socket followed by a successful RPC on its replacement.
+
+## Slice 5: Streaming text chat and app integration (2026-09-29)
+
+### Choices the plan left open
+- **`ConversationStore` owns its event-consumer task**, with idempotent `start()` and explicit stop/disconnect hooks. The root app model starts it before exposing the composer, routes successful pairing into chat, restores saved profiles, and coordinates lifecycle/path/scene events.
+- **Optimistic user echoes remain until canonical history confirms their idempotency key.** Send acknowledgments adopt server run IDs; a final received before its acknowledgment stays terminal. Canonical assistant entry IDs replace streamed IDs in place, so reconnect/history snapshots and later deltas cannot duplicate the row.
+- **The transcript follows new text only near the bottom**, preserving the user's reading position above it. A thinking indicator appears before the first delta and respects Reduce Motion. Textual's existing wrapper renders assistant text; the complete rich Markdown style, tool cards, and throttling are Slice 7.
+- **The app now links TestSupport for debug launch modes.** FakeGateway and fixture use are guarded by `#if DEBUG`; these modes use an ephemeral identity/profile and never load stored Gateway credentials. No new test target or external dependency was added.
+
+### Verification
+- `build_sim` and `build_run_sim` succeeded for app and embedded widget without warnings. The final `test_sim` run on iPhone 18 Pro / iOS 27.0 passed **106 tests**: **104 Swift Testing tests** across the six package targets and **2 UI tests**, with **0 failures**. The Swift Testing build-log totals were checked, not only the MCP summary.
+- UI coverage includes welcome → visible/hittable manual form and FakeGateway manual connect → send → streamed reply. Screenshots checked the welcome layout and seeded chat, including Connected text, user echo, thinking/stop state, and completed assistant text.
+- Final verification log: `~/Library/Developer/XcodeBuildMCP/workspaces/fancyclaw-d1c2cb856568/logs/test_sim_2026-09-30T02-11-05-960Z_pid35826_a3c6bcec.log`.
