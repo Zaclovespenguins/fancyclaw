@@ -3,6 +3,9 @@ public enum LaunchArgument: String, CaseIterable, Sendable {
     /// Connect to an in-process fake Gateway instead of a real one.
     case fakeGateway = "-FakeGateway"
 
+    /// Seed attachment drafts on an isolated FakeGateway.
+    case demoAttachments = "-DemoAttachments"
+
     /// Seed a fixture conversation for rendering checks.
     case demoConversation = "-DemoConversation"
 }

@@ -4,7 +4,7 @@ import DesignSystem
 import SwiftUI
 
 struct ChatView: View {
-    let store: ConversationStore
+    @Bindable var store: ConversationStore
     let sessions: SessionStore?
     let onSelectSession: (String) async -> Void
     let onNewChat: () async -> Void
@@ -100,7 +100,9 @@ struct ChatView: View {
                         .accessibilityIdentifier("chat.error")
                 }
 
-                ChatComposer(isStreaming: store.isStreaming, send: send, stop: stop)
+                ChatComposer(isStreaming: store.isStreaming, attachments: $store.draftAttachments,
+                             limits: { await store.attachmentLimits() }, send: send, stop: stop)
+                    .id(store.sessionKey)
                     .padding(.horizontal)
                     .padding(.bottom, 8)
             }
@@ -150,8 +152,8 @@ struct ChatView: View {
         }
     }
 
-    private func send(_ text: String) {
-        Task { await store.send(text) }
+    private func send(_ text: String, attachments: [PreparedAttachment]) async -> Bool {
+        await store.send(text, attachments: attachments)
     }
 
     private func stop() {

@@ -1,0 +1,18 @@
+{
+  "type": "req",
+  "id": "attachment-request",
+  "method": "chat.send",
+  "params": {
+    "sessionKey": "agent:main:main",
+    "message": "",
+    "idempotencyKey": "attachment-key",
+    "attachments": [{
+      "type": "file",
+      "mimeType": "text/plain",
+      "fileName": "notes.txt",
+      "origin": "file",
+      "content": "aGVsbG8=",
+      "sizeBytes": 5
+    }]
+  }
+}

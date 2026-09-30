@@ -181,7 +181,13 @@ public final class FakeGateway: @unchecked Sendable {
                     lock.withLock {
                         activeRuns[runID] = sessionKey
                         if sessionSupport {
-                            histories[sessionKey, default: []].append(ChatMessage(role: .user, content: [.text(request.params?["message"]?.stringValue ?? "")],
+                            let attachments = (try? request.params?["attachments"]?.decode(as: [ChatAttachment].self)) ?? []
+                            let media = attachments.map { attachment in
+                                ContentBlock.media(.init(kind: attachment.type == "image" ? .image : .file,
+                                    mimeType: attachment.mimeType, fileName: attachment.fileName,
+                                    width: attachment.width, height: attachment.height, sizeBytes: attachment.sizeBytes))
+                            }
+                            histories[sessionKey, default: []].append(ChatMessage(role: .user, content: [.text(request.params?["message"]?.stringValue ?? "")] + media,
                                 idempotencyKey: runID, metadata: .init(id: runID + ":user")))
                             cursorVersion += 1
                         }

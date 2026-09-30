@@ -28,6 +28,36 @@ final class ChatTests: XCTestCase {
     }
 
     @MainActor
+    func testAttachmentTrayRemoveAndSendWithoutText() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-DemoAttachments"]
+        app.launch()
+        let remove = app.buttons["Remove Coast.jpg"]
+        XCTAssertTrue(remove.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Notes.txt"].exists)
+        XCTAssertTrue(app.buttons["chat.send"].isEnabled)
+        let draft = XCTAttachment(screenshot: app.screenshot())
+        draft.name = "Attachments — image and file draft"
+        draft.lifetime = .keepAlways
+        add(draft)
+        remove.tap()
+        XCTAssertFalse(remove.exists)
+        app.buttons["chat.send"].tap()
+        let reply = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Hello from FakeGateway.")).firstMatch
+        XCTAssertTrue(reply.waitForExistence(timeout: 15))
+        XCTAssertTrue(app.staticTexts["Notes.txt"].exists)
+        XCTAssertFalse(app.buttons["attachment.remove"].exists)
+        XCTAssertFalse(app.buttons["chat.send"].isEnabled)
+        app.buttons["chat.attach"].tap()
+        XCTAssertTrue(app.buttons["Photo Library"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["Take Photo"].exists)
+        XCTAssertTrue(app.buttons["Choose File"].exists)
+        app.buttons["Take Photo"].tap()
+        XCTAssertTrue(app.alerts["Attachment unavailable"].waitForExistence(timeout: 3))
+        app.alerts.buttons["OK"].tap()
+    }
+
+    @MainActor
     func testRichOutputControlsAndPartialMarkdown() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-DemoConversation"]

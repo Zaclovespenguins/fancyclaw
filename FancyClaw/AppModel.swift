@@ -42,7 +42,7 @@ final class AppModel {
                 isTestMode = true
                 return
             }
-            if ProcessInfo.processInfo.arguments.contains("-FakeGateway") || ProcessInfo.processInfo.arguments.contains("-DemoConversation") {
+            if ProcessInfo.processInfo.arguments.contains("-FakeGateway") || ProcessInfo.processInfo.arguments.contains("-DemoConversation") || ProcessInfo.processInfo.arguments.contains("-DemoAttachments") {
                 isTestMode = true
                 let hello = try Fixtures.decode(ResponseFrame<HelloOK>.self, from: "hello-ok.res").payload
                 guard let hello else { throw ConnectionError.missingPayload }
@@ -51,11 +51,18 @@ final class AppModel {
                 fake.enableSessions()
                 self.fake = fake
                 initialProfile = GatewayProfile(url: try await fake.start(), token: "test-token")
-                if ProcessInfo.processInfo.arguments.contains("-DemoConversation"), let initialProfile {
+                if (ProcessInfo.processInfo.arguments.contains("-DemoConversation") || ProcessInfo.processInfo.arguments.contains("-DemoAttachments")), let initialProfile {
                     let connection = GatewayConnection(identity: .generate())
                     let hello = try await connection.connect(to: initialProfile.url, token: initialProfile.token)
                     await activate(profile: initialProfile, connection: connection, hello: hello)
-                    await seedRichDemo()
+                    if ProcessInfo.processInfo.arguments.contains("-DemoAttachments") {
+                        let pipeline = AttachmentPipeline()
+                        let image = try await pipeline.prepare(data: AttachmentDemo.imageData(), fileName: "Coast.heic",
+                                                               imageRequired: true, limits: hello.policy.attachments)
+                        let file = try await pipeline.prepare(data: Data("Attachment demo".utf8), fileName: "Notes.txt",
+                                                              limits: hello.policy.attachments)
+                        conversation?.draftAttachments = [image, file]
+                    } else { await seedRichDemo() }
                 }
                 return
             }

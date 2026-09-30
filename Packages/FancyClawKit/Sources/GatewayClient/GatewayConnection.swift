@@ -28,6 +28,7 @@ public actor GatewayConnection {
     private var failures: [UUID: AsyncStream<Void>.Continuation] = [:]
     private var mediaOrigin: URL?
     private var mediaBearer: String?
+    public private(set) var policy: HelloOK.Policy?
     private var maxPayload = 25 * 1024 * 1024
 
     public init(identity: DeviceIdentity, identityStore: DeviceIdentityStore? = nil,
@@ -131,6 +132,7 @@ public actor GatewayConnection {
                 ready = true
                 mediaOrigin = url
                 mediaBearer = selectedToken ?? password
+                policy = hello.policy
                 maxPayload = hello.policy.maxPayload
                 if url.scheme == "wss" || url.host == "localhost" || url.host == "127.0.0.1" || url.host == "::1" {
                     let issued = hello.auth.deviceTokens?.first { $0.role == .operator }?.deviceToken

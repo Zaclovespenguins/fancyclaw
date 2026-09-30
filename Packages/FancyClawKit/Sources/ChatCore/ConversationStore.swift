@@ -11,6 +11,7 @@ public final class ConversationStore {
     public let gatewayBaseURL: URL?
     public private(set) var messages: [ConversationMessage] = []
     public private(set) var isStreaming = false
+    public var draftAttachments: [PreparedAttachment] = []
     public var errorMessage: String?
     public private(set) var hasMoreHistory = false
     public private(set) var isLoadingHistory = false
@@ -23,6 +24,7 @@ public final class ConversationStore {
     private var needsRefresh = false
     private var transcriptRevision = 0
 
+    private let attachmentPipeline = AttachmentPipeline()
     private let throttle: StreamingThrottle
     private var pendingAssistantMessages: [String: ConversationMessage] = [:]
     private var lastToolSequence: [String: Int] = [:]
@@ -41,6 +43,7 @@ public final class ConversationStore {
 
     private struct PendingSend {
         let text: String
+        let attachments: [PreparedAttachment]
         let messageID: String
     }
 
@@ -187,6 +190,7 @@ public final class ConversationStore {
 
     public func invalidate() {
         invalidated = true
+        draftAttachments.removeAll()
         stopListening()
     }
 
@@ -208,14 +212,19 @@ public final class ConversationStore {
     }
 
     /// Adds an optimistic user message, then submits it with a stable retry key.
-    public func send(_ text: String) async {
-        await submit(text, idempotencyKey: UUID().uuidString)
+    @discardableResult
+    public func send(_ text: String, attachments: [PreparedAttachment] = []) async -> Bool {
+        await submit(text, attachments: attachments, idempotencyKey: UUID().uuidString)
+    }
+
+    public func attachmentLimits() async -> HelloOK.AttachmentLimits? {
+        await connection.policy?.attachments
     }
 
     /// Retries a failed outbox entry using the same idempotency key.
     public func retry(idempotencyKey: String) async {
         guard let pending = outbox[idempotencyKey] else { return }
-        await submit(pending.text, idempotencyKey: idempotencyKey, existingMessageID: pending.messageID)
+        await submit(pending.text, attachments: pending.attachments, idempotencyKey: idempotencyKey, existingMessageID: pending.messageID)
     }
 
     public func abort() async {
@@ -263,6 +272,7 @@ public final class ConversationStore {
                 id: id, role: role, text: Self.visibleText(message),
                 isStreaming: currentStreaming?.isStreaming ?? false,
                 images: ConversationMessage.images(from: message),
+                files: ConversationMessage.files(from: message),
                 tools: Self.historyTools(message, current: currentStreaming?.tools ?? [])
             ))
         }
@@ -336,14 +346,22 @@ public final class ConversationStore {
         }
     }
 
-    private func submit(_ text: String, idempotencyKey: String, existingMessageID: String? = nil) async {
-        guard !invalidated, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+    @discardableResult
+    private func submit(_ text: String, attachments: [PreparedAttachment], idempotencyKey: String, existingMessageID: String? = nil) async -> Bool {
+        guard !invalidated, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachments.isEmpty else { return false }
+        let params = ChatSendParams(sessionKey: sessionKey, message: text, idempotencyKey: idempotencyKey,
+                                    attachments: attachments.isEmpty ? nil : attachments.map(\.payload))
+        let policy = await connection.policy
+        guard !invalidated else { return false }
+        do { try await attachmentPipeline.validateSubmission(attachments, params: params, policy: policy) }
+        catch { errorMessage = error.localizedDescription; return false }
+        guard !invalidated else { return false }
         transcriptRevision += 1
         let messageID = existingMessageID ?? "\(idempotencyKey):user"
         if existingMessageID == nil {
-            messages.append(ConversationMessage(id: messageID, role: .user, text: text))
+            messages.append(ConversationMessage(id: messageID, role: .user, text: text, attachments: attachments))
         }
-        outbox[idempotencyKey] = PendingSend(text: text, messageID: messageID)
+        outbox[idempotencyKey] = PendingSend(text: text, attachments: attachments, messageID: messageID)
         errorMessage = nil
         isStreaming = true
         activeRunID = runIDsByIdempotencyKey[idempotencyKey] ?? idempotencyKey
@@ -351,7 +369,7 @@ public final class ConversationStore {
         do {
             let response: ChatSendResponse = try await connection.request(
                 "chat.send",
-                params: ChatSendParams(sessionKey: sessionKey, message: text, idempotencyKey: idempotencyKey),
+                params: params,
                 returning: ChatSendResponse.self
             )
             adopt(response, idempotencyKey: idempotencyKey)
@@ -366,6 +384,7 @@ public final class ConversationStore {
             isStreaming = false
             if activeRunID == idempotencyKey { activeRunID = nil }
         }
+        return true
     }
 
     func adopt(_ response: ChatSendResponse, idempotencyKey: String) {
@@ -406,12 +425,14 @@ public final class ConversationStore {
             if let index = messages.firstIndex(where: { $0.id == id || $0.id == assistantMessageID(for: runID) }) {
                 messages[index].text = text
                 messages[index].images = ConversationMessage.images(from: message)
+                messages[index].files = ConversationMessage.files(from: message)
                 messages[index].tools = Self.historyTools(message, current: messages[index].tools)
                 messages[index].isStreaming = false
                 if messages[index].id != id { messages[index].id = id }
             } else {
                 messages.append(ConversationMessage(id: id, role: .assistant, text: text,
-                    images: ConversationMessage.images(from: message), tools: Self.historyTools(message, current: [])))
+                    images: ConversationMessage.images(from: message),
+                    files: ConversationMessage.files(from: message), tools: Self.historyTools(message, current: [])))
             }
         } else if let index = messages.firstIndex(where: { $0.id == assistantMessageID(for: runID) }) {
             messages[index].isStreaming = false

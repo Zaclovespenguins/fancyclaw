@@ -461,7 +461,7 @@
 				INFOPLIST_FILE = "Config/FancyClaw-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = FancyClaw;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
-				INFOPLIST_KEY_NSCameraUsageDescription = "FancyClaw uses the camera to scan a pairing QR code from your OpenClaw Gateway.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "FancyClaw uses the camera to scan Gateway pairing codes and attach photos to your chats.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "FancyClaw finds and connects to OpenClaw Gateways on your local network.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -492,7 +492,7 @@
 				INFOPLIST_FILE = "Config/FancyClaw-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = FancyClaw;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
-				INFOPLIST_KEY_NSCameraUsageDescription = "FancyClaw uses the camera to scan a pairing QR code from your OpenClaw Gateway.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "FancyClaw uses the camera to scan Gateway pairing codes and attach photos to your chats.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "FancyClaw finds and connects to OpenClaw Gateways on your local network.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;

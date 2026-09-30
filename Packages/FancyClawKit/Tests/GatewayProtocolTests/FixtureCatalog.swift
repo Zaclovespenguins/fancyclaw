@@ -61,6 +61,7 @@ struct FixtureCase: Sendable, CustomTestStringConvertible {
         .response("error-approval-not-found.res", JSONValue.self),
         .response("error-future-code.res", JSONValue.self),
         // Chat
+        .request("chat-send-attachment.req", ChatSendParams.self, body: "ChatSendParams"),
         .request("chat-send.req", ChatSendParams.self, body: "ChatSendParams"),
         .response("chat-send.res", ChatSendResponse.self),
         .response("chat-send-in-flight.res", ChatSendResponse.self),
