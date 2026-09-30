@@ -1,3 +1,5 @@
+import Foundation
+
 /// The error object of a failed response: `{code, message, details?, retryable?, retryAfterMs?}`.
 public struct GatewayErrorShape: Codable, Hashable, Sendable, Error {
     public var code: GatewayErrorCode
@@ -175,4 +177,8 @@ public enum ConnectRecoveryStep: OpenEnum {
         case .unknown(let value): value
         }
     }
+}
+
+extension GatewayErrorShape: LocalizedError {
+    public var errorDescription: String? { message }
 }

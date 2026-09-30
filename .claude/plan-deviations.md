@@ -33,3 +33,15 @@ Where the implementation departs from `PLAN.md`, or settles something the plan l
 - **The connection accepts an injected `DeviceIdentity`; `DeviceIdentityStore` owns Keychain persistence.** This keeps deterministic test keys out of Keychain while the app can call `loadOrCreate()` once at startup. Slice 3 should use the store when it wires onboarding to the connection.
 - **Startup `UNAVAILABLE` retries are bounded at three connection attempts**, honoring `retryAfterMs` up to five seconds. General reconnect and network recovery remain Slice 4 work.
 - **FakeGateway verifies Ed25519 signatures and returns scripted handshake and RPC responses over a loopback WebSocket.** Tests use this server and never connect to the owner's running Gateway.
+
+## Slice 3: Onboarding and pairing (2026-09-29)
+
+### Choices the plan left open
+- **Integration of Slices 3–5 was batched.** GPT 6 Luna agents implemented onboarding, the conversation store, and chat UI in separate files; the coordinator owned socket recovery and app routing. The slice commits separate these concerns; app routing to the new screens lands with Slice 5.
+- **Pairing retries use an injected sleeper and elapsed-time provider**, backed by ContinuousClock in the app. The five-minute deadline and cancellation are enforced before each connection attempt. FakeGateway covers pending approval followed by success.
+- **TLS fingerprints pin the leaf certificate's SHA-256**, including explicitly trusted self-signed Gateway certificates. Bonjour requests TXT records, treats them as hints, and asks the user to confirm the fingerprint before connecting. Physical-device camera and Bonjour checks remain unverified in this simulator-only pass.
+- **Discovery starts when Nearby is selected**, rather than asking for Local Network access on the welcome screen. The scanner reports unavailable camera/permission errors and manual setup remains available in the simulator.
+
+### Verification
+- Integrated app and embedded widget build without warnings on iPhone 18 Pro / iOS 27.0. Full test plan: **106 passed, 0 failed**, including setup-code/transport tables, pairing retries, welcome → manual navigation, and FakeGateway manual connect → chat.
+- Welcome and chat screenshots checked. `-OnboardingPreview` avoids loading any stored Gateway profile in launch UI tests; `-FakeGateway` and `-DemoConversation` create ephemeral loopback servers and identities.
