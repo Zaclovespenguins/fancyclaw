@@ -1,0 +1,19 @@
+{
+  "type": "event",
+  "event": "agent",
+  "payload": {
+    "runId": "00000000-0000-4000-8000-000000000001",
+    "seq": 9,
+    "stream": "tool",
+    "ts": 1737264000000,
+    "data": {
+      "phase": "start",
+      "name": "exec",
+      "toolCallId": "call-0001",
+      "args": {
+        "command": "df -h"
+      }
+    }
+  },
+  "seq": 400
+}

@@ -1,0 +1,76 @@
+{
+  "type": "res",
+  "id": "req-connect-0001",
+  "ok": true,
+  "payload": {
+    "type": "hello-ok",
+    "protocol": 4,
+    "server": {
+      "version": "2026.9.6",
+      "connId": "conn-fake-0001"
+    },
+    "features": {
+      "methods": [
+        "chat.send",
+        "chat.history",
+        "chat.abort",
+        "sessions.list",
+        "exec.approval.resolve"
+      ],
+      "events": [
+        "chat",
+        "agent",
+        "tick",
+        "shutdown",
+        "sessions.changed",
+        "exec.approval.requested",
+        "exec.approval.resolved"
+      ]
+    },
+    "snapshot": {
+      "presence": [
+        {
+          "host": "fake-gateway-host",
+          "clientId": "openclaw-ios",
+          "mode": "ui",
+          "ts": 1737264000000
+        }
+      ],
+      "health": {
+        "ok": true,
+        "ts": 1737264000000
+      },
+      "stateVersion": {
+        "presence": 3,
+        "health": 7
+      },
+      "uptimeMs": 123456,
+      "sessionDefaults": {
+        "defaultAgentId": "main",
+        "mainKey": "main",
+        "mainSessionKey": "agent:main:main"
+      },
+      "authMode": "token"
+    },
+    "auth": {
+      "method": "device-token",
+      "role": "operator",
+      "scopes": [
+        "operator.read",
+        "operator.write",
+        "operator.approvals"
+      ],
+      "deviceToken": "fake-device-token-0001",
+      "issuedAtMs": 1737264000000
+    },
+    "policy": {
+      "maxPayload": 26214400,
+      "maxBufferedBytes": 52428800,
+      "tickIntervalMs": 15000,
+      "attachments": {
+        "maxBytes": 20971520,
+        "maxImageBytes": 6291456
+      }
+    }
+  }
+}

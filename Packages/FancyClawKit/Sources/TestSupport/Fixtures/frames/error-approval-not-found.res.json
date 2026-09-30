@@ -1,0 +1,9 @@
+{
+  "type": "res",
+  "id": "req-approve-0002",
+  "ok": false,
+  "error": {
+    "code": "APPROVAL_NOT_FOUND",
+    "message": "approval not found"
+  }
+}

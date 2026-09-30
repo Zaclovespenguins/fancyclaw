@@ -1,0 +1,9 @@
+{
+  "type": "req",
+  "id": "req-approve-0001",
+  "method": "exec.approval.resolve",
+  "params": {
+    "id": "approval-fake-0001",
+    "decision": "allow-once"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "type": "event",
+  "event": "tick",
+  "payload": {
+    "ts": 1737264000000
+  },
+  "seq": 200
+}

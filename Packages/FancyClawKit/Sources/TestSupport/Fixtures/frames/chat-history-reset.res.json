@@ -1,0 +1,8 @@
+{
+  "type": "res",
+  "id": "req-history-0002",
+  "ok": true,
+  "payload": {
+    "kind": "reset"
+  }
+}

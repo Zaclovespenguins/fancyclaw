@@ -1,0 +1,14 @@
+{
+  "type": "res",
+  "id": "req-connect-0001",
+  "ok": false,
+  "error": {
+    "code": "INVALID_REQUEST",
+    "message": "unauthorized: gateway token mismatch",
+    "details": {
+      "code": "AUTH_TOKEN_MISMATCH",
+      "canRetryWithDeviceToken": true,
+      "recommendedNextStep": "retry_with_device_token"
+    }
+  }
+}

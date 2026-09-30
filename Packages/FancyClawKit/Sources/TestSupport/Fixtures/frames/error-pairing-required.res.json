@@ -1,0 +1,24 @@
+{
+  "type": "res",
+  "id": "req-connect-0001",
+  "ok": false,
+  "error": {
+    "code": "NOT_PAIRED",
+    "message": "pairing required: device is not approved yet",
+    "details": {
+      "code": "PAIRING_REQUIRED",
+      "reason": "not-paired",
+      "requestId": "fake-pairing-request-0001",
+      "remediationHint": "Approve this device from the pending pairing requests.",
+      "recommendedNextStep": "wait_then_retry",
+      "retryable": true,
+      "pauseReconnect": false,
+      "deviceId": "0000000000000000000000000000000000000000000000000000000000000000",
+      "requestedRole": "operator",
+      "requestedScopes": [
+        "operator.read",
+        "operator.write"
+      ]
+    }
+  }
+}

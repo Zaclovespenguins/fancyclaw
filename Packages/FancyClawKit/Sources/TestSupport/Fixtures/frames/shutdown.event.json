@@ -1,0 +1,9 @@
+{
+  "type": "event",
+  "event": "shutdown",
+  "payload": {
+    "reason": "restart",
+    "restartExpectedMs": 5000
+  },
+  "seq": 201
+}

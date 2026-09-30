@@ -1,0 +1,14 @@
+{
+  "type": "req",
+  "id": "req-sessions-0001",
+  "method": "sessions.list",
+  "params": {
+    "limit": 60,
+    "offset": 0,
+    "includeDerivedTitles": true,
+    "includeLastMessage": true,
+    "excludeSubagents": true,
+    "excludeCron": true,
+    "excludeSystem": true
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "type": "res",
+  "id": "req-history-0002",
+  "ok": true,
+  "payload": {
+    "kind": "delta",
+    "messages": [
+      {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "text",
+            "text": "You're using **160 GB** of 228 GB.\n\n| Volume | Used |\n|---|---|\n| disk1 | 70% |"
+          },
+          {
+            "type": "image",
+            "mimeType": "image/png",
+            "url": "/api/chat/media/outgoing/fake-artifact-0001/full",
+            "artifactId": "fake-artifact-0001",
+            "alt": "Disk chart",
+            "width": 640,
+            "height": 480
+          }
+        ],
+        "timestamp": 1737264003000,
+        "model": "fake-model-1",
+        "stopReason": "stop",
+        "__openclaw": {
+          "id": "entry-0004",
+          "runId": "00000000-0000-4000-8000-000000000001"
+        }
+      }
+    ],
+    "deltaCursor": "fake-delta-cursor-0002",
+    "sessionInfo": {
+      "key": "agent:main:main",
+      "hasActiveRun": false
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "type": "event",
+  "event": "connect.challenge",
+  "payload": {
+    "nonce": "fake-nonce-0001",
+    "ts": 1737264000000
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "type": "res",
+  "id": "req-connect-0002",
+  "ok": true,
+  "payload": {
+    "type": "hello-ok",
+    "protocol": 4,
+    "server": {
+      "version": "2026.9.6",
+      "connId": "conn-fake-0002"
+    },
+    "features": {
+      "methods": [],
+      "events": []
+    },
+    "snapshot": {
+      "presence": [],
+      "health": {},
+      "stateVersion": {
+        "presence": 0,
+        "health": 0
+      },
+      "uptimeMs": 1000
+    },
+    "auth": {
+      "method": "bootstrap-token",
+      "deviceToken": "fake-node-token-0000",
+      "role": "node",
+      "scopes": [],
+      "deviceTokens": [
+        {
+          "deviceToken": "fake-operator-token-0000",
+          "role": "operator",
+          "scopes": [
+            "operator.approvals",
+            "operator.read",
+            "operator.talk.secrets",
+            "operator.write"
+          ],
+          "issuedAtMs": 1737264000000
+        }
+      ]
+    },
+    "policy": {
+      "maxPayload": 26214400,
+      "maxBufferedBytes": 52428800,
+      "tickIntervalMs": 15000
+    }
+  }
+}
