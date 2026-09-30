@@ -1,0 +1,10 @@
+// Project-wide settings shared by every target and configuration.
+
+DEVELOPMENT_TEAM = NWV8LZ45D5
+FC_BUNDLE_ID_PREFIX = com.zacisnotacompany.fancyclaw
+
+MARKETING_VERSION = 1.0.0
+CURRENT_PROJECT_VERSION = 1
+
+IPHONEOS_DEPLOYMENT_TARGET = 26.0
+TARGETED_DEVICE_FAMILY = 1
