@@ -19,7 +19,10 @@ public struct ExecApprovalRequest: Codable, Hashable, Sendable, Identifiable {
     /// The decisions to offer: those in `allowedDecisions`, or all of them if the Gateway didn't say.
     /// Deny is always offered.
     public var offeredDecisions: [ApprovalDecision] {
-        var decisions = request.allowedDecisions ?? [.allowOnce, .allowAlways, .deny]
+        let unavailable = request.unavailableDecisions ?? []
+        var decisions = (request.allowedDecisions ?? [.allowOnce, .allowAlways, .deny])
+            .filter { $0.isKnown && !unavailable.contains($0) }
+        decisions = ApprovalDecision.knownCases.filter { decisions.contains($0) }
         if !decisions.contains(.deny) { decisions.append(.deny) }
         return decisions
     }
@@ -81,6 +84,18 @@ public struct ExecApprovalResolveParams: Codable, Hashable, Sendable {
     public init(id: String, decision: ApprovalDecision) {
         self.id = id
         self.decision = decision
+    }
+
+    private enum CodingKeys: String, CodingKey { case id, decision }
+
+    public func encode(to encoder: any Encoder) throws {
+        guard decision.isKnown else {
+            throw EncodingError.invalidValue(decision, .init(codingPath: encoder.codingPath,
+                debugDescription: "Cannot send an unknown approval decision."))
+        }
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(decision, forKey: .decision)
     }
 }
 

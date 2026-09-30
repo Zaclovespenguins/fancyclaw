@@ -29,6 +29,7 @@ public actor GatewayConnection {
     private var mediaOrigin: URL?
     private var mediaBearer: String?
     public private(set) var policy: HelloOK.Policy?
+    public private(set) var grantedScopes: [OperatorScope] = []
     private var maxPayload = 25 * 1024 * 1024
 
     public init(identity: DeviceIdentity, identityStore: DeviceIdentityStore? = nil,
@@ -133,6 +134,7 @@ public actor GatewayConnection {
                 mediaOrigin = url
                 mediaBearer = selectedToken ?? password
                 policy = hello.policy
+                grantedScopes = hello.auth.scopes
                 maxPayload = hello.policy.maxPayload
                 if url.scheme == "wss" || url.host == "localhost" || url.host == "127.0.0.1" || url.host == "::1" {
                     let issued = hello.auth.deviceTokens?.first { $0.role == .operator }?.deviceToken

@@ -13,6 +13,7 @@ import TestSupport
 final class AppModel {
     private(set) var conversation: ConversationStore?
     private(set) var sessions: SessionStore?
+    private(set) var approvals: ApprovalStore?
     private var cache: TranscriptCache?
     private var cacheContainer: ModelContainer?
     private var conversations: [String: ConversationStore] = [:]
@@ -42,7 +43,7 @@ final class AppModel {
                 isTestMode = true
                 return
             }
-            if ProcessInfo.processInfo.arguments.contains("-FakeGateway") || ProcessInfo.processInfo.arguments.contains("-DemoConversation") || ProcessInfo.processInfo.arguments.contains("-DemoAttachments") {
+            if ProcessInfo.processInfo.arguments.contains("-FakeGateway") || ProcessInfo.processInfo.arguments.contains("-DemoConversation") || ProcessInfo.processInfo.arguments.contains("-DemoAttachments") || ProcessInfo.processInfo.arguments.contains("-DemoApprovals") {
                 isTestMode = true
                 let hello = try Fixtures.decode(ResponseFrame<HelloOK>.self, from: "hello-ok.res").payload
                 guard let hello else { throw ConnectionError.missingPayload }
@@ -51,11 +52,13 @@ final class AppModel {
                 fake.enableSessions()
                 self.fake = fake
                 initialProfile = GatewayProfile(url: try await fake.start(), token: "test-token")
-                if (ProcessInfo.processInfo.arguments.contains("-DemoConversation") || ProcessInfo.processInfo.arguments.contains("-DemoAttachments")), let initialProfile {
+                if (ProcessInfo.processInfo.arguments.contains("-DemoConversation") || ProcessInfo.processInfo.arguments.contains("-DemoAttachments") || ProcessInfo.processInfo.arguments.contains("-DemoApprovals")), let initialProfile {
                     let connection = GatewayConnection(identity: .generate())
                     let hello = try await connection.connect(to: initialProfile.url, token: initialProfile.token)
                     await activate(profile: initialProfile, connection: connection, hello: hello)
-                    if ProcessInfo.processInfo.arguments.contains("-DemoAttachments") {
+                    if ProcessInfo.processInfo.arguments.contains("-DemoApprovals") {
+                        await seedApprovalDemo()
+                    } else if ProcessInfo.processInfo.arguments.contains("-DemoAttachments") {
                         let pipeline = AttachmentPipeline()
                         let image = try await pipeline.prepare(data: AttachmentDemo.imageData(), fileName: "Coast.heic",
                                                                imageRequired: true, limits: hello.policy.attachments)
@@ -90,6 +93,21 @@ final class AppModel {
     }
 
     #if DEBUG
+    private func seedApprovalDemo() async {
+        guard let fake, let sessions else { return }
+        await sessions.refresh()
+        let otherKey = await sessions.create()
+        let created = Int(Date.now.timeIntervalSince1970 * 1000)
+        fake.requestApproval(.init(id: "demo-approval", createdAtMs: created, expiresAtMs: created + 120_000,
+            request: .init(command: "swift --version", cwd: "/tmp/fancyclaw-demo", host: "Gateway",
+                warningText: "The assistant wants to run this command on the Gateway.",
+                allowedDecisions: [.allowOnce, .deny], sessionKey: SessionKey.main.rawValue)))
+        if let otherKey {
+            fake.requestApproval(.init(id: "demo-other-approval", createdAtMs: created, expiresAtMs: created + 120_000,
+                request: .init(command: "pwd", allowedDecisions: [.allowOnce, .deny], sessionKey: otherKey)))
+        }
+    }
+
     private func seedRichDemo() async {
         // Seed the fake's canonical history too, so a lifecycle resync retains the showcase.
         guard let conversation, let fake else { return }
@@ -103,6 +121,8 @@ final class AppModel {
 
     func activate(profile: GatewayProfile, connection: GatewayConnection, hello: HelloOK) async {
         if self.connection !== connection { configure(profile: profile, connection: connection) }
+        approvals?.updateScopes(hello.auth.scopes)
+        await approvals?.start()
         await conversation?.start()
         await sessions?.start()
         let lifecycle = ConnectionLifecycle(connection: connection, resync: { [weak self] in
@@ -135,6 +155,8 @@ final class AppModel {
 
     private func configure(profile: GatewayProfile, connection: GatewayConnection) {
         self.connection = connection
+        approvals?.stop()
+        approvals = ApprovalStore(connection: connection)
         initialProfile = profile
         do {
             if cacheContainer == nil { cacheContainer = try TranscriptCache.makeContainer(inMemory: isTestMode) }
@@ -151,6 +173,8 @@ final class AppModel {
     }
 
     private func resync() async {
+        if let connection { approvals?.updateScopes(await connection.grantedScopes) }
+        approvals?.refreshExpiry()
         await sessions?.refresh()
         for store in conversations.values { await store.refreshHistory() }
     }
@@ -213,6 +237,8 @@ final class AppModel {
         for store in conversations.values { store.stopListening() }
         conversations.removeAll()
         sessions?.stop()
+        approvals?.stop()
+        approvals = nil
         sessions = nil
         conversation = nil
         cache = nil

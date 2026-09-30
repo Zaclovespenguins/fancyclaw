@@ -30,6 +30,8 @@ public final class FakeGateway: @unchecked Sendable {
     private var chatReply: String?
     private var activeRuns: [String: String] = [:]
     private var rpcReplies: [String: JSONValue] = [:]
+    private var rpcErrors: [String: GatewayErrorShape] = [:]
+    private var approvals: [String: ExecApprovalRequest] = [:]
     private var queuedRPCReplies: [String: [JSONValue]] = [:]
     private var sessionSupport = false
     private var sessionRows: [SessionSummary] = []
@@ -76,6 +78,15 @@ public final class FakeGateway: @unchecked Sendable {
 
     public func reply(to method: String, with payload: JSONValue) {
         lock.withLock { rpcReplies[method] = payload }
+    }
+
+    public func fail(_ method: String, with error: GatewayErrorShape) {
+        lock.withLock { rpcErrors[method] = error }
+    }
+
+    public func requestApproval(_ request: ExecApprovalRequest) {
+        lock.withLock { approvals[request.id] = request }
+        emit(.init(event: .execApprovalRequested(request)))
     }
 
     public func start() async throws -> URL {
@@ -166,7 +177,21 @@ public final class FakeGateway: @unchecked Sendable {
             do {
                 let request = try GatewayCoding.decoder().decode(RequestFrame<JSONValue>.self, from: data)
                 lock.withLock { rpcRequests.append(request) }
-                if let scripted = lock.withLock({ () -> JSONValue? in
+                if let error = lock.withLock({ rpcErrors[request.method] }) {
+                    send(ResponseFrame<JSONValue>(id: request.id, ok: false, error: error), on: connection)
+                } else if request.method == "exec.approval.resolve", let params = request.params {
+                    let decision = try params.decode(as: ExecApprovalResolveParams.self)
+                    let approval = lock.withLock { approvals[decision.id] }
+                    if let approval, approval.expiresAt > .now, approval.offeredDecisions.contains(decision.decision) {
+                        lock.withLock { _ = approvals.removeValue(forKey: decision.id) }
+                        send(ResponseFrame(id: request.id, ok: true, payload: JSONValue.object(["ok": .bool(true)])), on: connection)
+                        emit(.init(event: .execApprovalResolved(.init(id: decision.id, decision: decision.decision,
+                            resolvedBy: "fake-operator"))))
+                    } else {
+                        send(ResponseFrame<JSONValue>(id: request.id, ok: false,
+                            error: .init(code: .approvalNotFound, message: "Approval already handled or expired")), on: connection)
+                    }
+                } else if let scripted = lock.withLock({ () -> JSONValue? in
                     guard var queue = queuedRPCReplies[request.method], !queue.isEmpty else { return nil }
                     let next = queue.removeFirst()
                     queuedRPCReplies[request.method] = queue

@@ -50,6 +50,20 @@ struct EventDecodingTests {
         #expect(unrestricted.offeredDecisions == [.allowOnce, .allowAlways, .deny])
     }
 
+    @Test func unknownUnavailableAndDuplicateDecisionsAreNotOffered() {
+        let approval = ExecApprovalRequest(id: "a", createdAtMs: 0, expiresAtMs: 0,
+            request: .init(command: "pwd", allowedDecisions: [.allowOnce, .allowOnce, .allowAlways, .unknown("future")],
+                unavailableDecisions: [.allowAlways, .deny]))
+        #expect(approval.offeredDecisions == [.allowOnce, .deny])
+    }
+
+    @Test func resolveEncodingRejectsUnknownDecisionsButDecodingToleratesThem() throws {
+        let params = try GatewayCoding.decoder().decode(ExecApprovalResolveParams.self,
+            from: Data(#"{"id":"a","decision":"future"}"#.utf8))
+        #expect(params.decision == .unknown("future"))
+        #expect(throws: EncodingError.self) { try GatewayCoding.encoder().encode(params) }
+    }
+
     @Test(arguments: ["future.event", "no-payload.event"])
     func unmodeledEventsDecodeAsUnknown(fixture: String) throws {
         let frame = try Fixtures.decode(GatewayEventFrame.self, from: fixture)

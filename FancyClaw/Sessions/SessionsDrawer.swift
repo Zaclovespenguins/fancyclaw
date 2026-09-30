@@ -4,6 +4,7 @@ import SwiftUI
 
 struct SessionsDrawer: View {
     @Bindable var store: SessionStore
+    let approvals: ApprovalStore?
     let selectedKey: String
     let onSelect: (String) async -> Void
     let onNewChat: () async -> Void
@@ -50,6 +51,12 @@ struct SessionsDrawer: View {
                                         }
                                     }
                                     Spacer()
+                                    if let count = approvals?.pendingCount(for: session.key), count > 0 {
+                                        Label("\(count)", systemImage: "terminal")
+                                            .font(.caption.bold()).foregroundStyle(.orange)
+                                            .accessibilityLabel("\(count) pending command approvals")
+                                            .accessibilityIdentifier("sessions.approvals.\(session.key)")
+                                    }
                                     if session.key == selectedKey { Image(systemName: "checkmark").accessibilityLabel("Selected") }
                                 }
                             }

@@ -6,6 +6,7 @@ import SwiftUI
 struct ChatView: View {
     @Bindable var store: ConversationStore
     let sessions: SessionStore?
+    let approvals: ApprovalStore?
     let onSelectSession: (String) async -> Void
     let onNewChat: () async -> Void
     let connectionStatus: String
@@ -21,6 +22,7 @@ struct ChatView: View {
     init(
         store: ConversationStore,
         sessions: SessionStore? = nil,
+        approvals: ApprovalStore? = nil,
         connectionStatus: String = "Connected",
         onDisconnect: @escaping () -> Void = {},
         onReconnect: @escaping () -> Void = {},
@@ -29,6 +31,7 @@ struct ChatView: View {
     ) {
         self.store = store
         self.sessions = sessions
+        self.approvals = approvals
         self.onSelectSession = onSelectSession
         self.onNewChat = onNewChat
         self.connectionStatus = connectionStatus
@@ -44,7 +47,7 @@ struct ChatView: View {
                         .disabled(store.isLoadingHistory)
                         .accessibilityIdentifier("chat.older")
                 }
-                if store.messages.isEmpty {
+                if store.messages.isEmpty && (approvals?.approvals(for: store.sessionKey).isEmpty ?? true) {
                     ContentUnavailableView(
                         "Start a conversation",
                         systemImage: "bubble.left.and.bubble.right",
@@ -63,6 +66,12 @@ struct ChatView: View {
                     if store.isStreaming,
                        store.messages.last(where: { $0.role == .assistant })?.isStreaming != true {
                         ChatThinkingIndicator()
+                    }
+                }
+                if let approvals {
+                    ForEach(approvals.approvals(for: store.sessionKey)) { approval in
+                        ApprovalCard(approval: approval, store: approvals, isConnected: connectionStatus == "Connected")
+                            .id("approval:\(approval.id)")
                     }
                 }
             }
@@ -86,6 +95,7 @@ struct ChatView: View {
         }
         .onChange(of: store.messages.count) { scrollToLatest() }
         .onChange(of: store.messages.last?.text) { scrollToLatest() }
+        .onChange(of: approvals?.approvals.count) { scrollToLatest() }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 8) {
                 if let sessions {
@@ -112,7 +122,16 @@ struct ChatView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                Button("Chats", systemImage: "sidebar.left") { showingSessions = true }
+                Button { showingSessions = true } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "sidebar.left")
+                        if let count = approvals?.pendingCount(), count > 0 {
+                            Text(count, format: .number).font(.caption.bold())
+                        }
+                    }
+                }
+                    .accessibilityLabel("Chats")
+                    .accessibilityValue("\(approvals?.pendingCount() ?? 0) pending command approvals")
                     .accessibilityIdentifier("chat.sessions")
             }
             ToolbarItem(placement: .topBarTrailing) {
@@ -121,7 +140,7 @@ struct ChatView: View {
         }
         .sheet(isPresented: $showingSessions) {
             if let sessions {
-                SessionsDrawer(store: sessions, selectedKey: store.sessionKey,
+                SessionsDrawer(store: sessions, approvals: approvals, selectedKey: store.sessionKey,
                     onSelect: onSelectSession, onNewChat: onNewChat)
             }
         }
@@ -142,7 +161,7 @@ struct ChatView: View {
     }
 
     private func scrollToLatest() {
-        guard isFollowingLatest, !isPaging, !store.messages.isEmpty else { return }
+        guard isFollowingLatest, !isPaging else { return }
         if reduceMotion {
             scrollPosition.scrollTo(edge: .bottom)
         } else {

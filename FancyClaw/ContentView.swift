@@ -14,7 +14,7 @@ struct ContentView: View {
                     .navigationTitle("FancyClaw")
                     .navigationBarTitleDisplayMode(.inline)
             } else if let conversation = model.conversation {
-                ChatView(store: conversation, sessions: model.sessions, connectionStatus: model.status.rawValue,
+                ChatView(store: conversation, sessions: model.sessions, approvals: model.approvals, connectionStatus: model.status.rawValue,
                     onDisconnect: disconnect, onReconnect: { Task { await model.reconnect() } }, onSelectSession: { key in await model.selectSession(key) },
                     onNewChat: { await model.newChat() })
                     .id(conversation.sessionKey)
