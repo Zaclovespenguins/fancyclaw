@@ -1,0 +1,42 @@
+{
+  "type": "res",
+  "id": "req-sessions-0001",
+  "ok": true,
+  "payload": {
+    "sessions": [
+      {
+        "key": "agent:main:main",
+        "kind": "direct",
+        "sessionId": "fake-session-0001",
+        "agentId": "main",
+        "label": "Disk cleanup",
+        "derivedTitle": "Checking disk usage",
+        "lastMessagePreview": "You're using 160 GB of 228 GB.",
+        "updatedAt": 1737264003000,
+        "lastActivityAt": 1737264003000,
+        "status": "done",
+        "model": "fake-model-1",
+        "pinned": true,
+        "unread": false,
+        "hasActiveRun": false,
+        "activeRunIds": [],
+        "channel": "webchat",
+        "participantCount": 1
+      },
+      {
+        "key": "agent:main:fake-0002",
+        "kind": "direct",
+        "agentId": "main",
+        "derivedTitle": "Trip ideas",
+        "updatedAt": null,
+        "status": "running",
+        "hasActiveRun": true,
+        "activeRunIds": [
+          "run-fake-0002"
+        ]
+      }
+    ],
+    "hasMore": false,
+    "totalCount": 2
+  }
+}

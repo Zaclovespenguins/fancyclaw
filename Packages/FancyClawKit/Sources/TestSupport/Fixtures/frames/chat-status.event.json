@@ -1,0 +1,18 @@
+{
+  "type": "event",
+  "event": "chat",
+  "payload": {
+    "runId": "00000000-0000-4000-8000-000000000001",
+    "sessionKey": "agent:main:main",
+    "agentId": "main",
+    "seq": 1,
+    "state": "status",
+    "phase": "starting_model",
+    "retry": {
+      "attempt": 1,
+      "maxAttempts": 3,
+      "reason": "rate_limit"
+    }
+  },
+  "seq": 100
+}

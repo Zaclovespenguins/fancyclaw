@@ -1,0 +1,12 @@
+{
+  "type": "event",
+  "event": "session.observer",
+  "payload": {
+    "headline": "Checking disk usage"
+  },
+  "seq": 401,
+  "stateVersion": {
+    "presence": 3,
+    "health": 8
+  }
+}

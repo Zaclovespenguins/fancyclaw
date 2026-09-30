@@ -1,0 +1,16 @@
+{
+  "type": "res",
+  "id": "req-approve-0001",
+  "ok": false,
+  "error": {
+    "code": "FORBIDDEN",
+    "message": "missing scope: operator.approvals",
+    "details": {
+      "code": "MISSING_SCOPE",
+      "missingScope": "operator.approvals",
+      "requiredScopes": [
+        "operator.approvals"
+      ]
+    }
+  }
+}

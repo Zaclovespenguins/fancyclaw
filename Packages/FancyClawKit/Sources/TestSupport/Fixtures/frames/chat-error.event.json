@@ -1,0 +1,20 @@
+{
+  "type": "event",
+  "event": "chat",
+  "payload": {
+    "runId": "00000000-0000-4000-8000-000000000001",
+    "sessionKey": "agent:main:main",
+    "agentId": "main",
+    "seq": 6,
+    "state": "error",
+    "errorMessage": "The model provider is rate limiting requests.",
+    "errorKind": "rate_limit",
+    "errorDetail": {
+      "provider": "fake-provider",
+      "model": "fake-model-1",
+      "httpStatus": 429,
+      "providerErrorType": "rate_limit_error"
+    }
+  },
+  "seq": 105
+}

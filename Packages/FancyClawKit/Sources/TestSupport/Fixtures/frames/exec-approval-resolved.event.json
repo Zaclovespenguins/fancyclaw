@@ -1,0 +1,11 @@
+{
+  "type": "event",
+  "event": "exec.approval.resolved",
+  "payload": {
+    "id": "approval-fake-0001",
+    "decision": "allow-once",
+    "resolvedBy": "fancyclaw",
+    "ts": 1737264005000
+  },
+  "seq": 301
+}

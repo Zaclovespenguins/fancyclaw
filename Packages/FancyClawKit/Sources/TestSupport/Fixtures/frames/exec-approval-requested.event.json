@@ -1,0 +1,28 @@
+{
+  "type": "event",
+  "event": "exec.approval.requested",
+  "payload": {
+    "id": "approval-fake-0001",
+    "createdAtMs": 1737264000000,
+    "expiresAtMs": 1737264120000,
+    "request": {
+      "command": "rm -rf ./build",
+      "commandPreview": "rm -rf ./build",
+      "cwd": "/tmp/fake-workspace",
+      "host": "gateway",
+      "warningText": "Deletes files",
+      "allowedDecisions": [
+        "allow-once",
+        "deny"
+      ],
+      "unavailableDecisions": [
+        "allow-always"
+      ],
+      "agentId": "main",
+      "sessionKey": "agent:main:main",
+      "runId": "00000000-0000-4000-8000-000000000001",
+      "toolCallId": "call-0002"
+    }
+  },
+  "seq": 300
+}

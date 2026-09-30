@@ -1,0 +1,23 @@
+{
+  "type": "req",
+  "id": "req-connect-0002",
+  "method": "connect",
+  "params": {
+    "minProtocol": 4,
+    "maxProtocol": 4,
+    "client": {
+      "id": "openclaw-ios",
+      "version": "1.0.0",
+      "platform": "ios",
+      "mode": "ui"
+    },
+    "role": "operator",
+    "scopes": [
+      "operator.read",
+      "operator.write"
+    ],
+    "auth": {
+      "bootstrapToken": "fake-bootstrap-token-0000"
+    }
+  }
+}

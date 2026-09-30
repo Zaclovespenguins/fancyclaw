@@ -1,0 +1,10 @@
+{
+  "type": "req",
+  "id": "req-history-0001",
+  "method": "chat.history",
+  "params": {
+    "sessionKey": "agent:main:main",
+    "limit": 50,
+    "offset": 0
+  }
+}

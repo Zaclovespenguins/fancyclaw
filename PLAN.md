@@ -66,7 +66,7 @@ Key sources (raw): `docs/gateway/protocol/{transport,handshake,auth,versioning,r
      "client":{"id":"openclaw-ios","displayName":"FancyClaw","version":"1.0.0","platform":"ios",
                "deviceFamily":"iPhone","modelIdentifier":"iPhone17,1","timeZone":"America/Denver","mode":"ui"},
      "role":"operator","scopes":["operator.read","operator.write","operator.approvals"],
-     "caps":["tool-events","chat-only-assistant-text","session-scoped-events","approvals","exec-approvals"],
+     "caps":["tool-events","session-scoped-events","approvals","exec-approvals"],
      "auth":{"token":"<deviceToken | sharedToken>"},   // or "bootstrapToken" / "password"
      "locale":"en-US","userAgent":"FancyClaw/1.0.0 (iOS 26.0)",
      "device":{"id":"<hex sha256(rawPubKey)>","publicKey":"<b64url raw 32B>","signature":"<b64url>",
@@ -85,7 +85,7 @@ Key sources (raw): `docs/gateway/protocol/{transport,handshake,auth,versioning,r
   (`platform`/`deviceFamily` trimmed, ASCII-lowercased; `token` = the `auth.token` being sent, or bootstrap token, or empty; `signedAt` = challenge `ts`).
 - Auth token precedence: explicit shared token → stored device token (per deviceId+role) → bootstrapToken.
 - Persist `hello-ok.auth.deviceToken` (+ scopes) in Keychain — **only when connected over `wss://` or loopback**.
-- Error `details.code` to map to UI: `DEVICE_AUTH_*`, `AUTH_TOKEN_MISMATCH` (`canRetryWithDeviceToken`), `AUTH_SCOPE_MISMATCH`, `OPERATOR_ACCESS_DENIED`, `PAIRING_REQUIRED` (`recommendedNextStep:"wait_then_retry"`).
+- Error `details.code` to map to UI: `DEVICE_AUTH_*`, `AUTH_TOKEN_MISMATCH` (`canRetryWithDeviceToken`), `AUTH_SCOPE_MISMATCH`, `PAIRING_REQUIRED` (`recommendedNextStep:"wait_then_retry"`, `requestId`). The full list is `ConnectErrorDetailCodes` in `connect-error-details.ts`. Operator access denial has no `details.code` of its own in 2026.9.6: `OPERATOR_ACCESS_DENIED_MESSAGE` is only a message string.
 
 ### Pairing / onboarding paths
 1. **Setup code / QR** (`openclaw qr`, or Control UI → Devices → Pair device): base64url JSON `{url, urls?, tlsFingerprint?, expiresAtMs?, bootstrapToken?, token?, password?}` (or `{host,port?,tls?,…}`). Scan with VisionKit `DataScannerViewController` or paste. Bootstrap tokens expire in 10 min.
@@ -99,13 +99,13 @@ Key sources (raw): `docs/gateway/protocol/{transport,handshake,auth,versioning,r
 - `shutdown {reason, restartExpectedMs?}` → show banner, reconnect after delay.
 
 ### Operator methods used
-- `chat.send {sessionKey, message, idempotencyKey, attachments?, thinking?, queueMode?}` → `{runId, status:"started"}`
+- `chat.send {sessionKey, message, idempotencyKey, attachments?, thinking?, queueMode?}` → `{runId, status}`, where `status` is `"started"` (new run), `"accepted"` (queued), `"in_flight"` (retry of a running turn) or `"ok"` (retry of a finished turn), plus optional `messageSeq`
 - `chat.history {sessionKey, cursor?, limit?}`; catch-up returns `{kind:"delta", messages, deltaCursor}` or `{kind:"reset"}`
 - `chat.abort {sessionKey, runId?}`
 - `sessions.list`, `sessions.subscribe`, `sessions.patch`, `sessions.reset {key}`, `sessions.delete`, `sessions.create`
 - `agents.list`, `models.list {view:"configured"}`, `status`, `health`
 - `exec.approval.resolve` / `approval.resolve` (needs `operator.approvals`)
-- Events: `chat` (state `status|delta|final|aborted|error`; `delta` has `deltaText`, optional full-snapshot `message` + `replace`), `agent` (tool/lifecycle streams; with `chat-only-assistant-text` cap, assistant text comes **only** via `chat`), `sessions.changed`, `exec.approval.requested/resolved`, `tick`, `shutdown`, `presence`, `health`.
+- Events: `chat` (state `status|delta|final|aborted|error`; `delta` has `deltaText`, optional full-snapshot `message` + `replace`), `agent` (tool/lifecycle streams. There is **no** `chat-only-assistant-text` cap in 2026.9.6 (`GATEWAY_CLIENT_CAPS`); in Slice 5, check whether assistant text also arrives on `agent` and ignore it there), `sessions.changed`, `exec.approval.requested/resolved`, `tick`, `shutdown`, `presence`, `health`.
 - Streaming rule: render assistant text from `chat` only; tool cards from `agent` tool stream. On `delta` with `message` (snapshot) or `replace:true`, **replace** buffer, never append twice.
 
 ### Exact payload shapes (verified in source)
@@ -188,6 +188,7 @@ Each slice ends with: build green (`build_sim`), all tests green (`test_sim`), a
 - `GatewayProtocol`: `RequestFrame`, `ResponseFrame`, `EventFrame`, `GatewayErrorShape`, `JSONValue`, `ConnectParams`, `HelloOK`, `ConnectChallenge`, `ChatEvent` (discriminated on `state`), `ChatSendParams/Response`, `ChatHistory*`, `SessionSummary`, `ExecApprovalRequest`, error-code enums (unknown values tolerated via `.unknown(String)`).
 - Fixtures: copy example JSON frames from the docs + a snapshot of `dist/protocol.schema.json` (built from tag v2026.9.6 via `pnpm protocol:gen`, or pulled from npm `@openclaw/gateway-protocol@2026.9.6`) into `TestSupport/Fixtures/`.
 - **Tests**: round-trip decode/encode every fixture; encoder emits **no extra keys** (compare key sets against schema `properties` for closed objects); unknown event names/states decode without throwing.
+- **Done (2026-09-29):** `Packages/FancyClawKit` with `GatewayProtocol` + `TestSupport`, created ahead of Slice 0. The schema subset comes from the npm tarball via `Scripts/refresh-protocol-schema.mjs`, and 66 tests pass on macOS and on the iPhone 18 Pro (iOS 27.0) simulator. Schema-less payloads (`connect.challenge`, `chat.send` ack, `chat.history` page, `sessions.list` result, exec-approval events) are checked against docs and source only.
 
 ### Slice 2 — Device identity, signing, handshake against FakeGateway
 - `DeviceIdentity` (CryptoKit Ed25519, Keychain), `base64url`, `deviceId` derivation, v3 signature payload builder.

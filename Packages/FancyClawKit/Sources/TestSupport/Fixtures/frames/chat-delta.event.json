@@ -1,0 +1,13 @@
+{
+  "type": "event",
+  "event": "chat",
+  "payload": {
+    "runId": "00000000-0000-4000-8000-000000000001",
+    "sessionKey": "agent:main:main",
+    "agentId": "main",
+    "seq": 2,
+    "state": "delta",
+    "deltaText": "You're using "
+  },
+  "seq": 101
+}

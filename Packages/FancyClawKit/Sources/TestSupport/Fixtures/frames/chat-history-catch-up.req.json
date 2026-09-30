@@ -1,0 +1,9 @@
+{
+  "type": "req",
+  "id": "req-history-0002",
+  "method": "chat.history",
+  "params": {
+    "sessionKey": "agent:main:main",
+    "cursor": "fake-delta-cursor-0001"
+  }
+}

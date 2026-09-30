@@ -1,0 +1,109 @@
+{
+  "type": "res",
+  "id": "req-history-0001",
+  "ok": true,
+  "payload": {
+    "sessionKey": "agent:main:main",
+    "sessionId": "fake-session-0001",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "Show me the disk usage."
+          }
+        ],
+        "timestamp": 1737264000000,
+        "idempotencyKey": "00000000-0000-4000-8000-000000000001",
+        "__openclaw": {
+          "id": "entry-0001",
+          "runId": "00000000-0000-4000-8000-000000000001",
+          "kind": "message"
+        }
+      },
+      {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "I should run df."
+          },
+          {
+            "type": "text",
+            "text": "Let me check."
+          },
+          {
+            "type": "toolCall",
+            "id": "call-0001",
+            "name": "exec",
+            "arguments": {
+              "command": "df -h"
+            }
+          }
+        ],
+        "timestamp": 1737264001000,
+        "model": "fake-model-1",
+        "stopReason": "toolUse",
+        "usage": {
+          "input": 120,
+          "output": 40
+        },
+        "__openclaw": {
+          "id": "entry-0002",
+          "runId": "00000000-0000-4000-8000-000000000001"
+        }
+      },
+      {
+        "role": "toolResult",
+        "toolCallId": "call-0001",
+        "toolName": "exec",
+        "content": [
+          {
+            "type": "text",
+            "text": "Filesystem  Size  Used\n/dev/disk1  228G  160G"
+          }
+        ],
+        "isError": false,
+        "timestamp": 1737264002000,
+        "__openclaw": {
+          "id": "entry-0003"
+        }
+      },
+      {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "text",
+            "text": "You're using **160 GB** of 228 GB.\n\n| Volume | Used |\n|---|---|\n| disk1 | 70% |"
+          },
+          {
+            "type": "image",
+            "mimeType": "image/png",
+            "url": "/api/chat/media/outgoing/fake-artifact-0001/full",
+            "artifactId": "fake-artifact-0001",
+            "alt": "Disk chart",
+            "width": 640,
+            "height": 480
+          }
+        ],
+        "timestamp": 1737264003000,
+        "model": "fake-model-1",
+        "stopReason": "stop",
+        "__openclaw": {
+          "id": "entry-0004",
+          "runId": "00000000-0000-4000-8000-000000000001"
+        }
+      }
+    ],
+    "sessionInfo": {
+      "key": "agent:main:main",
+      "agentId": "main",
+      "hasActiveRun": false,
+      "activeRunIds": []
+    },
+    "hasMore": true,
+    "nextOffset": 4,
+    "deltaCursor": "fake-delta-cursor-0001"
+  }
+}

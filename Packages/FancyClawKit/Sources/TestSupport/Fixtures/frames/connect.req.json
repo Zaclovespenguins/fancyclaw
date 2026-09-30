@@ -1,0 +1,43 @@
+{
+  "type": "req",
+  "id": "req-connect-0001",
+  "method": "connect",
+  "params": {
+    "minProtocol": 4,
+    "maxProtocol": 4,
+    "client": {
+      "id": "openclaw-ios",
+      "displayName": "FancyClaw",
+      "version": "1.0.0",
+      "platform": "ios",
+      "deviceFamily": "iPhone",
+      "modelIdentifier": "iPhone18,1",
+      "timeZone": "America/Denver",
+      "mode": "ui"
+    },
+    "role": "operator",
+    "scopes": [
+      "operator.read",
+      "operator.write",
+      "operator.approvals"
+    ],
+    "caps": [
+      "tool-events",
+      "session-scoped-events",
+      "approvals",
+      "exec-approvals"
+    ],
+    "auth": {
+      "token": "fake-device-token-0000"
+    },
+    "locale": "en-US",
+    "userAgent": "FancyClaw/1.0.0 (iOS 26.0)",
+    "device": {
+      "id": "0000000000000000000000000000000000000000000000000000000000000000",
+      "publicKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "signature": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "signedAt": 1737264000000,
+      "nonce": "fake-nonce-0001"
+    }
+  }
+}

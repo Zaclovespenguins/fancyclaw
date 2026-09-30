@@ -1,0 +1,24 @@
+{
+  "type": "event",
+  "event": "chat",
+  "payload": {
+    "runId": "00000000-0000-4000-8000-000000000001",
+    "sessionKey": "agent:main:main",
+    "agentId": "main",
+    "seq": 3,
+    "state": "delta",
+    "deltaText": "You are using **160 GB**",
+    "replace": true,
+    "message": {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "You are using **160 GB**"
+        }
+      ],
+      "timestamp": 1737264003000
+    }
+  },
+  "seq": 102
+}

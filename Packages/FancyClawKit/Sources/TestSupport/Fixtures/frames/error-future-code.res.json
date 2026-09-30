@@ -1,0 +1,12 @@
+{
+  "type": "res",
+  "id": "req-0003",
+  "ok": false,
+  "error": {
+    "code": "SOMETHING_NEW",
+    "message": "a code this client has never seen",
+    "details": {
+      "code": "SOMETHING_NEWER"
+    }
+  }
+}

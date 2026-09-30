@@ -1,0 +1,14 @@
+{
+  "type": "res",
+  "id": "req-connect-0001",
+  "ok": false,
+  "error": {
+    "code": "UNAVAILABLE",
+    "message": "gateway is starting",
+    "details": {
+      "reason": "startup-sidecars"
+    },
+    "retryable": true,
+    "retryAfterMs": 500
+  }
+}

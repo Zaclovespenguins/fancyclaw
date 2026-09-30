@@ -1,0 +1,24 @@
+{
+  "type": "req",
+  "id": "req-send-0001",
+  "method": "chat.send",
+  "params": {
+    "sessionKey": "agent:main:main",
+    "message": "What's in this picture?",
+    "idempotencyKey": "00000000-0000-4000-8000-000000000001",
+    "attachments": [
+      {
+        "type": "image",
+        "mimeType": "image/jpeg",
+        "fileName": "photo.jpg",
+        "origin": "file",
+        "content": "/9j/4AAQSkZJRgABAQAAAQABAAD/2Q==",
+        "sizeBytes": 24,
+        "width": 1,
+        "height": 1
+      }
+    ],
+    "thinking": "low",
+    "queueMode": "followup"
+  }
+}
