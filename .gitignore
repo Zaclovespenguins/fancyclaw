@@ -1,0 +1,23 @@
+# macOS
+.DS_Store
+
+# Xcode
+xcuserdata/
+DerivedData/
+*.xcresult
+*.xctestproducts
+*.ipa
+*.dSYM
+*.dSYM.zip
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# Local secrets (e.g. test Gateway tokens for .live tests)
+.env
+.env.*
+!.env.example
+
+# Claude Code
+.claude/settings.local.json

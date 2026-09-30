@@ -1,0 +1,70 @@
+{
+  "configurations" : [
+    {
+      "id" : "6F1C7E0A-3B1D-4C2E-9A57-0D3E8F2B4A10",
+      "name" : "Default",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:FancyClaw.xcodeproj",
+      "identifier" : "FC0000000000000000000030",
+      "name" : "FancyClaw"
+    }
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:Packages/FancyClawKit",
+        "identifier" : "GatewayProtocolTests",
+        "name" : "GatewayProtocolTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:Packages/FancyClawKit",
+        "identifier" : "GatewayClientTests",
+        "name" : "GatewayClientTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:Packages/FancyClawKit",
+        "identifier" : "ChatCoreTests",
+        "name" : "ChatCoreTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:Packages/FancyClawKit",
+        "identifier" : "PersistenceTests",
+        "name" : "PersistenceTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:Packages/FancyClawKit",
+        "identifier" : "DesignSystemTests",
+        "name" : "DesignSystemTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:Packages/FancyClawKit",
+        "identifier" : "TestSupportTests",
+        "name" : "TestSupportTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:FancyClaw.xcodeproj",
+        "identifier" : "FC0000000000000000000032",
+        "name" : "FancyClawUITests"
+      }
+    }
+  ],
+  "version" : 1
+}

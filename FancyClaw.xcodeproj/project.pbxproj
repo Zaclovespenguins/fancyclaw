@@ -1,0 +1,653 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		FC0000000000000000000050 /* FancyClawWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = FC0000000000000000000021 /* FancyClawWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		FC0000000000000000000051 /* GatewayProtocol in Frameworks */ = {isa = PBXBuildFile; productRef = FC0000000000000000000071 /* GatewayProtocol */; };
+		FC0000000000000000000052 /* GatewayClient in Frameworks */ = {isa = PBXBuildFile; productRef = FC0000000000000000000072 /* GatewayClient */; };
+		FC0000000000000000000053 /* ChatCore in Frameworks */ = {isa = PBXBuildFile; productRef = FC0000000000000000000073 /* ChatCore */; };
+		FC0000000000000000000054 /* Persistence in Frameworks */ = {isa = PBXBuildFile; productRef = FC0000000000000000000074 /* Persistence */; };
+		FC0000000000000000000055 /* DesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = FC0000000000000000000075 /* DesignSystem */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		FC0000000000000000000060 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = FC0000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FC0000000000000000000031;
+			remoteInfo = FancyClawWidgets;
+		};
+		FC0000000000000000000061 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = FC0000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FC0000000000000000000030;
+			remoteInfo = FancyClaw;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		FC0000000000000000000043 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				FC0000000000000000000050 /* FancyClawWidgets.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		FC0000000000000000000020 /* FancyClaw.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FancyClaw.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		FC0000000000000000000021 /* FancyClawWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FancyClawWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		FC0000000000000000000022 /* FancyClawUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FancyClawUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		FC0000000000000000000023 /* FancyClawKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = FancyClawKit; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		FC0000000000000000000010 /* FancyClaw */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = FancyClaw;
+			sourceTree = "<group>";
+		};
+		FC0000000000000000000011 /* FancyClawWidgets */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = FancyClawWidgets;
+			sourceTree = "<group>";
+		};
+		FC0000000000000000000012 /* FancyClawUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = FancyClawUITests;
+			sourceTree = "<group>";
+		};
+		FC0000000000000000000013 /* Config */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Config;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		FC0000000000000000000041 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FC0000000000000000000051 /* GatewayProtocol in Frameworks */,
+				FC0000000000000000000052 /* GatewayClient in Frameworks */,
+				FC0000000000000000000053 /* ChatCore in Frameworks */,
+				FC0000000000000000000054 /* Persistence in Frameworks */,
+				FC0000000000000000000055 /* DesignSystem in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FC0000000000000000000045 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FC0000000000000000000048 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		FC0000000000000000000002 = {
+			isa = PBXGroup;
+			children = (
+				FC0000000000000000000010 /* FancyClaw */,
+				FC0000000000000000000011 /* FancyClawWidgets */,
+				FC0000000000000000000012 /* FancyClawUITests */,
+				FC0000000000000000000004 /* Packages */,
+				FC0000000000000000000013 /* Config */,
+				FC0000000000000000000003 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		FC0000000000000000000003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				FC0000000000000000000020 /* FancyClaw.app */,
+				FC0000000000000000000021 /* FancyClawWidgets.appex */,
+				FC0000000000000000000022 /* FancyClawUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FC0000000000000000000004 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				FC0000000000000000000023 /* FancyClawKit */,
+			);
+			path = Packages;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		FC0000000000000000000030 /* FancyClaw */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = FC0000000000000000000081 /* Build configuration list for PBXNativeTarget "FancyClaw" */;
+			buildPhases = (
+				FC0000000000000000000040 /* Sources */,
+				FC0000000000000000000041 /* Frameworks */,
+				FC0000000000000000000042 /* Resources */,
+				FC0000000000000000000043 /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				FC0000000000000000000062 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				FC0000000000000000000010 /* FancyClaw */,
+			);
+			name = FancyClaw;
+			packageProductDependencies = (
+				FC0000000000000000000071 /* GatewayProtocol */,
+				FC0000000000000000000072 /* GatewayClient */,
+				FC0000000000000000000073 /* ChatCore */,
+				FC0000000000000000000074 /* Persistence */,
+				FC0000000000000000000075 /* DesignSystem */,
+			);
+			productName = FancyClaw;
+			productReference = FC0000000000000000000020 /* FancyClaw.app */;
+			productType = "com.apple.product-type.application";
+		};
+		FC0000000000000000000031 /* FancyClawWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = FC0000000000000000000082 /* Build configuration list for PBXNativeTarget "FancyClawWidgets" */;
+			buildPhases = (
+				FC0000000000000000000044 /* Sources */,
+				FC0000000000000000000045 /* Frameworks */,
+				FC0000000000000000000046 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				FC0000000000000000000011 /* FancyClawWidgets */,
+			);
+			name = FancyClawWidgets;
+			packageProductDependencies = (
+			);
+			productName = FancyClawWidgets;
+			productReference = FC0000000000000000000021 /* FancyClawWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		FC0000000000000000000032 /* FancyClawUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = FC0000000000000000000083 /* Build configuration list for PBXNativeTarget "FancyClawUITests" */;
+			buildPhases = (
+				FC0000000000000000000047 /* Sources */,
+				FC0000000000000000000048 /* Frameworks */,
+				FC0000000000000000000049 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				FC0000000000000000000063 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				FC0000000000000000000012 /* FancyClawUITests */,
+			);
+			name = FancyClawUITests;
+			packageProductDependencies = (
+			);
+			productName = FancyClawUITests;
+			productReference = FC0000000000000000000022 /* FancyClawUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		FC0000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2720;
+				LastUpgradeCheck = 2720;
+				TargetAttributes = {
+					FC0000000000000000000030 = {
+						CreatedOnToolsVersion = 27.2;
+					};
+					FC0000000000000000000031 = {
+						CreatedOnToolsVersion = 27.2;
+					};
+					FC0000000000000000000032 = {
+						CreatedOnToolsVersion = 27.2;
+						TestTargetID = FC0000000000000000000030;
+					};
+				};
+			};
+			buildConfigurationList = FC0000000000000000000080 /* Build configuration list for PBXProject "FancyClaw" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = FC0000000000000000000002;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				FC0000000000000000000070 /* XCLocalSwiftPackageReference "Packages/FancyClawKit" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = FC0000000000000000000003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				FC0000000000000000000030 /* FancyClaw */,
+				FC0000000000000000000031 /* FancyClawWidgets */,
+				FC0000000000000000000032 /* FancyClawUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		FC0000000000000000000042 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FC0000000000000000000046 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FC0000000000000000000049 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		FC0000000000000000000040 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FC0000000000000000000044 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FC0000000000000000000047 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		FC0000000000000000000062 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FC0000000000000000000031 /* FancyClawWidgets */;
+			targetProxy = FC0000000000000000000060 /* PBXContainerItemProxy */;
+		};
+		FC0000000000000000000063 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FC0000000000000000000030 /* FancyClaw */;
+			targetProxy = FC0000000000000000000061 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		FC0000000000000000000090 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = FC0000000000000000000013 /* Config */;
+			baseConfigurationReferenceRelativePath = Shared.xcconfig;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		FC0000000000000000000091 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = FC0000000000000000000013 /* Config */;
+			baseConfigurationReferenceRelativePath = Shared.xcconfig;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_VERSION = 6.0;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		FC0000000000000000000092 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Config/FancyClaw.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/FancyClaw-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = FancyClaw;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				INFOPLIST_KEY_NSCameraUsageDescription = "FancyClaw uses the camera to scan a pairing QR code from your OpenClaw Gateway.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "FancyClaw finds and connects to OpenClaw Gateways on your local network.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(FC_BUNDLE_ID_PREFIX)";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+			};
+			name = Debug;
+		};
+		FC0000000000000000000093 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Config/FancyClaw.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/FancyClaw-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = FancyClaw;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				INFOPLIST_KEY_NSCameraUsageDescription = "FancyClaw uses the camera to scan a pairing QR code from your OpenClaw Gateway.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "FancyClaw finds and connects to OpenClaw Gateways on your local network.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(FC_BUNDLE_ID_PREFIX)";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+			};
+			name = Release;
+		};
+		FC0000000000000000000094 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Config/FancyClawWidgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/FancyClawWidgets-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = FancyClaw;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(FC_BUNDLE_ID_PREFIX).widgets";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+			};
+			name = Debug;
+		};
+		FC0000000000000000000095 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Config/FancyClawWidgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/FancyClawWidgets-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = FancyClaw;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(FC_BUNDLE_ID_PREFIX).widgets";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+			};
+			name = Release;
+		};
+		FC0000000000000000000096 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(FC_BUNDLE_ID_PREFIX).uitests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TEST_TARGET_NAME = FancyClaw;
+			};
+			name = Debug;
+		};
+		FC0000000000000000000097 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(FC_BUNDLE_ID_PREFIX).uitests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TEST_TARGET_NAME = FancyClaw;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		FC0000000000000000000080 /* Build configuration list for PBXProject "FancyClaw" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FC0000000000000000000090 /* Debug */,
+				FC0000000000000000000091 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		FC0000000000000000000081 /* Build configuration list for PBXNativeTarget "FancyClaw" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FC0000000000000000000092 /* Debug */,
+				FC0000000000000000000093 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		FC0000000000000000000082 /* Build configuration list for PBXNativeTarget "FancyClawWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FC0000000000000000000094 /* Debug */,
+				FC0000000000000000000095 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		FC0000000000000000000083 /* Build configuration list for PBXNativeTarget "FancyClawUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FC0000000000000000000096 /* Debug */,
+				FC0000000000000000000097 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		FC0000000000000000000070 /* XCLocalSwiftPackageReference "Packages/FancyClawKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/FancyClawKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		FC0000000000000000000071 /* GatewayProtocol */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = GatewayProtocol;
+		};
+		FC0000000000000000000072 /* GatewayClient */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = GatewayClient;
+		};
+		FC0000000000000000000073 /* ChatCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ChatCore;
+		};
+		FC0000000000000000000074 /* Persistence */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Persistence;
+		};
+		FC0000000000000000000075 /* DesignSystem */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = DesignSystem;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = FC0000000000000000000001 /* Project object */;
+}
