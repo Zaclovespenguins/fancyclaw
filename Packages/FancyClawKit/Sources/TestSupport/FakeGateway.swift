@@ -26,12 +26,24 @@ public final class FakeGateway: @unchecked Sendable {
     private var replies: [Reply]
     private var requests: [ConnectParams] = []
     private var failures: [Error] = []
+    private var rpcRequests: [RequestFrame<JSONValue>] = []
+    private var chatReply: String?
+    private var activeRuns: [String: String] = [:]
     private var rpcReplies: [String: JSONValue] = [:]
     public let challenge: ConnectChallenge
 
     public init(replies: [Reply], challenge: ConnectChallenge = .init(nonce: "fake-nonce", ts: 1_737_264_000_000)) {
         self.replies = replies
         self.challenge = challenge
+    }
+
+    public var receivedRequests: [RequestFrame<JSONValue>] { lock.withLock { rpcRequests } }
+
+    public func streamChatReply(_ text: String) { lock.withLock { chatReply = text } }
+
+    public func emit(_ frame: GatewayEventFrame) {
+        let peers = lock.withLock { connections }
+        for peer in peers { send(frame, on: peer) }
     }
 
     public var receivedConnects: [ConnectParams] { lock.withLock { requests } }
@@ -60,6 +72,14 @@ public final class FakeGateway: @unchecked Sendable {
                 }
             }
             listener.start(queue: queue)
+        }
+    }
+
+    public func dropConnections() {
+        lock.withLock {
+            for connection in connections { connection.cancel() }
+            connections.removeAll()
+            activeRuns.removeAll()
         }
     }
 
@@ -120,7 +140,37 @@ public final class FakeGateway: @unchecked Sendable {
             guard let data else { return }
             do {
                 let request = try GatewayCoding.decoder().decode(RequestFrame<JSONValue>.self, from: data)
-                if let payload = lock.withLock({ rpcReplies[request.method] }) {
+                lock.withLock { rpcRequests.append(request) }
+                if request.method == "chat.send", let text = lock.withLock({ chatReply }),
+                   let runID = request.params?["idempotencyKey"]?.stringValue,
+                   let sessionKey = request.params?["sessionKey"]?.stringValue {
+                    lock.withLock { activeRuns[runID] = sessionKey }
+                    send(ResponseFrame(id: request.id, ok: true,
+                        payload: ChatSendResponse(runId: runID, status: .started)), on: connection)
+                    Task {
+                        try? await Task.sleep(for: .milliseconds(150))
+                        self.send(GatewayEventFrame(event: .chat(ChatEvent(runId: runID,
+                            sessionKey: sessionKey, seq: 1, state: .delta(.init(deltaText: text))))), on: connection)
+                        try? await Task.sleep(for: .milliseconds(150))
+                        guard self.lock.withLock({ self.activeRuns.removeValue(forKey: runID) != nil }) else { return }
+                        self.send(GatewayEventFrame(event: .chat(ChatEvent(runId: runID,
+                            sessionKey: sessionKey, seq: 2, state: .final(.init(
+                                message: ChatMessage(role: .assistant, content: [.text(text)])))))), on: connection)
+                    }
+                } else if request.method == "chat.abort" {
+                    let runID = request.params?["runId"]?.stringValue
+                    let sessionKey = request.params?["sessionKey"]?.stringValue ?? "agent:main:main"
+                    let runs = lock.withLock { () -> [String] in
+                        let keys = activeRuns.filter { $0.value == sessionKey && (runID == nil || $0.key == runID) }.map(\.key)
+                        for key in keys { activeRuns.removeValue(forKey: key) }
+                        return keys
+                    }
+                    send(ResponseFrame(id: request.id, ok: true, payload: JSONValue.object(["ok": .bool(true)])), on: connection)
+                    for run in runs {
+                        send(GatewayEventFrame(event: .chat(ChatEvent(runId: run, sessionKey: sessionKey,
+                            seq: 3, state: .aborted(.init())))), on: connection)
+                    }
+                } else if let payload = lock.withLock({ rpcReplies[request.method] }) {
                     send(ResponseFrame(id: request.id, ok: true, payload: payload), on: connection)
                 }
                 receiveRequest(on: connection)

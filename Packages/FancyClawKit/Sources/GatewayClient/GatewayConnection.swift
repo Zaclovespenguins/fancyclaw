@@ -21,6 +21,9 @@ public actor GatewayConnection {
     private var reader: Task<Void, Never>?
     private var pending: [String: CheckedContinuation<Data, Error>] = [:]
     private var eventContinuations: [UUID: AsyncStream<GatewayEventFrame>.Continuation] = [:]
+    private var generation = UUID()
+    private var ready = false
+    private var failures: [UUID: AsyncStream<Void>.Continuation] = [:]
     private var maxPayload = 25 * 1024 * 1024
 
     public init(identity: DeviceIdentity, identityStore: DeviceIdentityStore? = nil,
@@ -29,6 +32,18 @@ public actor GatewayConnection {
         self.identityStore = identityStore
         self.session = session
     }
+
+    public func disconnections() -> AsyncStream<Void> {
+        let id = UUID()
+        return AsyncStream { continuation in
+            failures[id] = continuation
+            continuation.onTermination = { [weak self] _ in
+                Task { await self?.removeFailureContinuation(id) }
+            }
+        }
+    }
+
+    private func removeFailureContinuation(_ id: UUID) { failures.removeValue(forKey: id) }
 
     public func events() -> AsyncStream<GatewayEventFrame> {
         let id = UUID()
@@ -47,7 +62,9 @@ public actor GatewayConnection {
         password: String? = nil, version: String = "1.0.0",
         timeout: Duration = .seconds(15)
     ) async throws -> HelloOK {
+        try TransportPolicy.validate(url)
         disconnect()
+        let attemptGeneration = generation
         let storedToken = try identityStore?.deviceToken(deviceID: identity.deviceID, role: "operator")
         var selectedToken = token ?? storedToken
         var attempts = 0
@@ -81,17 +98,21 @@ public actor GatewayConnection {
                 if let error = response.error, !response.ok { throw error }
                 guard let hello = response.payload else { throw ConnectionError.missingPayload }
                 guard hello.protocol == ProtocolVersion.current else { throw ConnectionError.protocolMismatch(hello.protocol) }
+                guard attemptGeneration == generation else { throw CancellationError() }
+                ready = true
                 maxPayload = hello.policy.maxPayload
                 if url.scheme == "wss" || url.host == "localhost" || url.host == "127.0.0.1" || url.host == "::1" {
                     let issued = hello.auth.deviceTokens?.first { $0.role == .operator }?.deviceToken
                         ?? hello.auth.deviceToken
                     if let issued { try identityStore?.saveDeviceToken(issued, deviceID: identity.deviceID, role: "operator") }
                 }
-                reader = Task { await readLoop(task) }
+                reader = Task { await readLoop(task, generation: attemptGeneration) }
                 return hello
             } catch {
                 task.cancel(with: .goingAway, reason: nil)
+                guard attemptGeneration == generation else { throw CancellationError() }
                 socket = nil
+                ready = false
                 if let gatewayError = error as? GatewayErrorShape {
                     if gatewayError.detailCode == .authTokenMismatch && gatewayError.canRetryWithDeviceToken,
                        selectedToken != storedToken, let storedToken, attempts < 2 {
@@ -113,7 +134,7 @@ public actor GatewayConnection {
         _ method: String, params: Params?, returning: Payload.Type,
         timeout: Duration = .seconds(15)
     ) async throws -> Payload {
-        guard let socket else { throw ConnectionError.disconnected }
+        guard ready, let socket else { throw ConnectionError.disconnected }
         let frame = RequestFrame(method: method, params: params)
         let data = try GatewayCoding.encoder().encode(frame)
         guard data.count <= maxPayload else { throw ConnectionError.frameTooLarge }
@@ -142,10 +163,11 @@ public actor GatewayConnection {
         pending.removeValue(forKey: id)?.resume(throwing: error)
     }
 
-    private func readLoop(_ task: URLSessionWebSocketTask) async {
+    private func readLoop(_ task: URLSessionWebSocketTask, generation readerGeneration: UUID) async {
         do {
             while !Task.isCancelled {
                 let data = try await receive(task, timeout: .seconds(120))
+                guard readerGeneration == generation else { return }
                 let header = try GatewayCoding.decoder().decode(FrameHeader.self, from: data)
                 switch header.type {
                 case .response:
@@ -158,7 +180,11 @@ public actor GatewayConnection {
             }
         } catch {
             Self.logger.info("Gateway receive loop ended: \(String(describing: error), privacy: .public)")
+            guard readerGeneration == generation else { return }
+            ready = false
+            socket = nil
             failPending(error)
+            for continuation in failures.values { continuation.yield(()) }
         }
     }
 
@@ -166,7 +192,7 @@ public actor GatewayConnection {
         let message = try await withThrowingTaskGroup(of: URLSessionWebSocketTask.Message.self) { group in
             group.addTask { try await task.receive() }
             group.addTask { try await Task.sleep(for: timeout); throw ConnectionError.timedOut }
-            let result = try await group.next()!
+            guard let result = try await group.next() else { throw ConnectionError.disconnected }
             group.cancelAll()
             return result
         }
@@ -183,10 +209,24 @@ public actor GatewayConnection {
     }
 
     public func disconnect() {
+        generation = UUID()
+        ready = false
         reader?.cancel()
         reader = nil
         socket?.cancel(with: .goingAway, reason: nil)
         socket = nil
         failPending(ConnectionError.disconnected)
+    }
+}
+
+extension ConnectionError: LocalizedError {
+    public var errorDescription: String? {
+        switch self {
+        case .invalidChallenge, .invalidResponse, .missingPayload: "The Gateway sent an unexpected response."
+        case .frameTooLarge: "The message exceeds the Gateway’s size limit."
+        case .timedOut: "The Gateway took too long to respond."
+        case .disconnected: "The Gateway is disconnected. Reconnect and try again."
+        case .protocolMismatch: "This Gateway uses an unsupported protocol version."
+        }
     }
 }

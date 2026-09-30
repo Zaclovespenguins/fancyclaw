@@ -45,3 +45,14 @@ Where the implementation departs from `PLAN.md`, or settles something the plan l
 ### Verification
 - Integrated app and embedded widget build without warnings on iPhone 18 Pro / iOS 27.0. Full test plan: **106 passed, 0 failed**, including setup-code/transport tables, pairing retries, welcome → manual navigation, and FakeGateway manual connect → chat.
 - Welcome and chat screenshots checked. `-OnboardingPreview` avoids loading any stored Gateway profile in launch UI tests; `-FakeGateway` and `-DemoConversation` create ephemeral loopback servers and identities.
+
+## Slice 4: Connection lifecycle and resilience (2026-09-29)
+
+### Choices the plan left open
+- **Recovery is a separate `ConnectionLifecycle` actor around `GatewayConnection`.** It owns bounded exponential backoff with jitter, shutdown delay, tick watchdog, foreground/network availability, status streams, and a resync callback. The socket actor exposes reader disconnections and guards readiness/generation so an old reader cannot affect a replacement socket.
+- **`GatewayTiming` type-erases an injected Clock** for monotonic time and sleeps. Tests check the watchdog boundary and shutdown delay without waiting on production timeouts.
+- **Resync currently fetches the latest 100 history entries.** Cursor catch-up, older-history pagination, session-list refresh, and persistence remain Slice 6. The app disconnects on background (not temporary inactive states) and reconnects on foreground; permanent authentication errors show Offline until the user reconnects.
+- **FakeGateway can drop peer connections and emit chat events**, supporting both lifecycle integration and Slice 5's send/abort coverage. No tests contact the owner's Gateway.
+
+### Verification
+- Warning-free integrated app/widget build; full test plan **106 passed, 0 failed**. Recovery tests cover bounded backoff, tick timeout, sequence gaps/duplicates, shutdown delay, foreground reconnect, and a dropped socket followed by a successful RPC on its replacement.
