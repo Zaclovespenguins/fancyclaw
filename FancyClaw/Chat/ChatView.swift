@@ -1,29 +1,49 @@
 import ChatCore
+import GatewayProtocol
 import DesignSystem
 import SwiftUI
 
 struct ChatView: View {
     let store: ConversationStore
+    let sessions: SessionStore?
+    let onSelectSession: (String) async -> Void
+    let onNewChat: () async -> Void
     let connectionStatus: String
     let onDisconnect: () -> Void
+    let onReconnect: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var scrollPosition = ScrollPosition(idType: String.self)
     @State private var isFollowingLatest = true
+    @State private var showingSessions = false
+    @State private var isPaging = false
 
     init(
         store: ConversationStore,
+        sessions: SessionStore? = nil,
         connectionStatus: String = "Connected",
-        onDisconnect: @escaping () -> Void = {}
+        onDisconnect: @escaping () -> Void = {},
+        onReconnect: @escaping () -> Void = {},
+        onSelectSession: @escaping (String) async -> Void = { _ in },
+        onNewChat: @escaping () async -> Void = {}
     ) {
         self.store = store
+        self.sessions = sessions
+        self.onSelectSession = onSelectSession
+        self.onNewChat = onNewChat
         self.connectionStatus = connectionStatus
         self.onDisconnect = onDisconnect
+        self.onReconnect = onReconnect
     }
 
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 24) {
+                if store.hasMoreHistory {
+                    Button("Load older messages") { loadOlder() }
+                        .disabled(store.isLoadingHistory)
+                        .accessibilityIdentifier("chat.older")
+                }
                 if store.messages.isEmpty {
                     ContentUnavailableView(
                         "Start a conversation",
@@ -57,10 +77,18 @@ struct ChatView: View {
         } action: { _, isAtBottom in
             isFollowingLatest = isAtBottom
         }
+        .onScrollGeometryChange(for: Bool.self) { geometry in
+            geometry.visibleRect.minY <= 20
+        } action: { previous, atTop in
+            if atTop && !previous { loadOlder() }
+        }
         .onChange(of: store.messages.count) { scrollToLatest() }
         .onChange(of: store.messages.last?.text) { scrollToLatest() }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 8) {
+                if let sessions {
+                    AgentModelPicker(store: sessions, sessionKey: store.sessionKey, onNewChat: onNewChat)
+                }
                 if let errorMessage = store.errorMessage {
                     Label(errorMessage, systemImage: "exclamationmark.circle.fill")
                         .font(.subheadline)
@@ -76,11 +104,21 @@ struct ChatView: View {
             }
             .background(.bar)
         }
-        .navigationTitle("FancyClaw")
+        .navigationTitle(sessions?.sessions.first(where: { $0.key == store.sessionKey })?.title ?? "FancyClaw")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                ChatConnectionMenu(status: connectionStatus, onDisconnect: onDisconnect)
+                Button("Chats", systemImage: "sidebar.left") { showingSessions = true }
+                    .accessibilityIdentifier("chat.sessions")
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                ChatConnectionMenu(status: connectionStatus, onDisconnect: onDisconnect, onReconnect: onReconnect)
+            }
+        }
+        .sheet(isPresented: $showingSessions) {
+            if let sessions {
+                SessionsDrawer(store: sessions, selectedKey: store.sessionKey,
+                    onSelect: onSelectSession, onNewChat: onNewChat)
             }
         }
         .task {
@@ -88,8 +126,19 @@ struct ChatView: View {
         }
     }
 
+    private func loadOlder() {
+        guard store.hasMoreHistory, !isPaging, !store.isLoadingHistory else { return }
+        isPaging = true
+        let firstID = store.messages.first?.id
+        Task {
+            await store.loadOlderHistory()
+            if let firstID { scrollPosition.scrollTo(id: firstID, anchor: .top) }
+            isPaging = false
+        }
+    }
+
     private func scrollToLatest() {
-        guard isFollowingLatest, !store.messages.isEmpty else { return }
+        guard isFollowingLatest, !isPaging, !store.messages.isEmpty else { return }
         if reduceMotion {
             scrollPosition.scrollTo(edge: .bottom)
         } else {

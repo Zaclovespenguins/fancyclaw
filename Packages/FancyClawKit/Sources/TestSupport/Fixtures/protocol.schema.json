@@ -5475,6 +5475,1078 @@
       },
       "additionalProperties": true
     },
+    "SessionsCreateParams": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "minLength": 1
+        },
+        "agentId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "description": "Prepared presentation title for a newly created session. Unlike label it is not unique and never claims a label; ignored when adopting an existing key."
+        },
+        "titleSource": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "Submitted topic for background naming when the first turn is sent separately. Does not start a turn; ignored when adopting an existing session."
+        },
+        "category": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "agentRuntime": {
+          "type": "string",
+          "minLength": 1
+        },
+        "contextWindow": {
+          "type": "string",
+          "minLength": 1
+        },
+        "thinkingLevel": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fastMode": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "string",
+              "const": "auto"
+            }
+          ]
+        },
+        "permissionMode": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "read-only"
+            },
+            {
+              "type": "string",
+              "const": "guarded"
+            },
+            {
+              "type": "string",
+              "const": "workspace"
+            },
+            {
+              "type": "string",
+              "const": "full"
+            }
+          ]
+        },
+        "toolOverrides": {
+          "type": "object",
+          "properties": {
+            "mcpServers": {
+              "type": "object",
+              "patternProperties": {
+                "^.*$": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "mcpToolsDeny": {
+              "type": "object",
+              "patternProperties": {
+                "^.*$": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            },
+            "skills": {
+              "type": "object",
+              "patternProperties": {
+                "^.*$": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "webSearch": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "incognito": {
+          "type": "boolean"
+        },
+        "visibility": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "shared"
+            },
+            {
+              "type": "string",
+              "const": "read-only"
+            },
+            {
+              "type": "string",
+              "const": "suggest"
+            },
+            {
+              "type": "string",
+              "const": "draft"
+            }
+          ]
+        },
+        "catalogId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "parentSessionKey": {
+          "type": "string",
+          "minLength": 1
+        },
+        "spawnDepth": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Spawn-lineage depth for spawn-owned creations (visible subagent sessions); requires parentSessionKey. Omitted creations persist as root sessions (depth 0)."
+        },
+        "fork": {
+          "type": "boolean",
+          "description": "Fork the parent transcript; requires parentSessionKey."
+        },
+        "forkFrom": {
+          "type": "string",
+          "const": "last-completed",
+          "description": "Fork through the parent's last completed assistant message; requires fork=true."
+        },
+        "emitCommandHooks": {
+          "type": "boolean"
+        },
+        "succeedsParent": {
+          "type": "boolean",
+          "description": "When sessions.create creates a distinct child, whether that child succeeds its parent and emits the parent's terminal session_end. Requires parentSessionKey and emitCommandHooks. False keeps the parent active; omission preserves legacy behavior."
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "task": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "mentions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "profileId",
+              "start",
+              "end"
+            ],
+            "properties": {
+              "profileId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "start": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "end": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              }
+            },
+            "additionalProperties": false
+          },
+          "maxItems": 10
+        },
+        "attachments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string"
+              },
+              "mimeType": {
+                "type": "string"
+              },
+              "fileName": {
+                "type": "string"
+              },
+              "origin": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": "paste"
+                  },
+                  {
+                    "type": "string",
+                    "const": "file"
+                  }
+                ]
+              },
+              "content": {},
+              "sizeBytes": {
+                "type": "number"
+              },
+              "durationMs": {
+                "type": "number"
+              },
+              "width": {
+                "type": "number"
+              },
+              "height": {
+                "type": "number"
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "projectId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Start in a registered project; operator.write."
+        },
+        "projectGitUrl": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048,
+          "description": "Prepare a remote project before the initial agent turn; operator.write."
+        },
+        "repository": {
+          "type": "object",
+          "required": [
+            "url"
+          ],
+          "properties": {
+            "url": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            },
+            "ref": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            }
+          },
+          "additionalProperties": false
+        },
+        "worktree": {
+          "type": "boolean"
+        },
+        "worktreeSource": {
+          "type": "string",
+          "const": "empty",
+          "description": "Start a fresh isolated workspace without copying a repository or agent workspace. Requires worktree=true; cannot be combined with cwd, project, repository, catalog, execNode, or worktreeBaseRef."
+        },
+        "worktreeBaseRef": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Base ref for the new managed worktree branch. Requires worktree=true."
+        },
+        "worktreeName": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+          "description": "Managed worktree name; becomes branch openclaw/<name>. Requires worktree=true."
+        },
+        "execNode": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Bind session exec to host=node with this node id/name. Requires operator.admin."
+        },
+        "cwd": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Absolute Gateway working directory, managed-worktree source directory, or working directory on execNode. Gateway paths outside configured agent workspaces and all execNode paths require operator.admin."
+        }
+      },
+      "additionalProperties": false
+    },
+    "SessionsPatchParams": {
+      "type": "object",
+      "required": [
+        "key"
+      ],
+      "properties": {
+        "key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "agentId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expectedSessionId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expectedLifecycleRevision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expectedPermissionMode": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "read-only"
+                },
+                {
+                  "type": "string",
+                  "const": "guarded"
+                },
+                {
+                  "type": "string",
+                  "const": "workspace"
+                },
+                {
+                  "type": "string",
+                  "const": "full"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "expectedSandboxMode": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "off"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "expectedNativeRuntimeConsent": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "expectedToolOverrides": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "mcpServers": {
+                  "type": "object",
+                  "patternProperties": {
+                    "^.*$": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "mcpToolsDeny": {
+                  "type": "object",
+                  "patternProperties": {
+                    "^.*$": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  }
+                },
+                "skills": {
+                  "type": "object",
+                  "patternProperties": {
+                    "^.*$": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "webSearch": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Replace toolOverrides only when the current sparse overlay still matches this value; null asserts no overlay."
+        },
+        "expectedMarkedUnreadAt": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Apply an automatic unread=false acknowledgement only if the explicit unread marker still matches; null asserts no marker."
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "autoLabel": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "icon": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "color": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "category": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "boardFace": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "chat"
+            },
+            {
+              "type": "string",
+              "const": "dashboard"
+            }
+          ]
+        },
+        "boardPresentation": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "split"
+            },
+            {
+              "type": "string",
+              "const": "expanded"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "statusNote": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 120
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Short expiring sidebar status note; null clears it and any declared attention."
+        },
+        "attention": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "hand",
+                "key",
+                "alert",
+                "flag",
+                "lock",
+                "hourglass"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ttlMinutes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 120
+        },
+        "archived": {
+          "type": "boolean"
+        },
+        "pinned": {
+          "type": "boolean"
+        },
+        "unread": {
+          "type": "boolean",
+          "description": "Set true to mark unread; false records the session as read."
+        },
+        "contextWindow": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "thinkingLevel": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fastMode": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "string",
+              "const": "auto"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "toolOverrides": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "mcpServers": {
+                  "type": "object",
+                  "patternProperties": {
+                    "^.*$": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "mcpToolsDeny": {
+                  "type": "object",
+                  "patternProperties": {
+                    "^.*$": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  }
+                },
+                "skills": {
+                  "type": "object",
+                  "patternProperties": {
+                    "^.*$": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "webSearch": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "verboseLevel": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "traceLevel": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reasoningLevel": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "responseUsage": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "off"
+            },
+            {
+              "type": "string",
+              "const": "tokens"
+            },
+            {
+              "type": "string",
+              "const": "full"
+            },
+            {
+              "type": "string",
+              "const": "on"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "elevatedLevel": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "execHost": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "execSecurity": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "execAsk": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "execNode": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "permissionMode": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "read-only"
+                },
+                {
+                  "type": "string",
+                  "const": "guarded"
+                },
+                {
+                  "type": "string",
+                  "const": "workspace"
+                },
+                {
+                  "type": "string",
+                  "const": "full"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sandboxMode": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "off"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "nativeRuntimeConsent": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "agentRuntime": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "completionOwnerSessionKey": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "inheritedToolPolicyVersion": {
+          "anyOf": [
+            {
+              "type": "number",
+              "const": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "inheritedToolAllow": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "inheritedToolDeny": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sendPolicy": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "allow"
+            },
+            {
+              "type": "string",
+              "const": "deny"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "groupActivation": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "mention"
+            },
+            {
+              "type": "string",
+              "const": "always"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "SessionsResetParams": {
+      "type": "object",
+      "required": [
+        "key"
+      ],
+      "properties": {
+        "key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "agentId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "new"
+            },
+            {
+              "type": "string",
+              "const": "reset"
+            }
+          ]
+        },
+        "expectedSessionId": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "SessionsDeleteParams": {
+      "type": "object",
+      "required": [
+        "key"
+      ],
+      "properties": {
+        "key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "agentId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "deleteTranscript": {
+          "type": "boolean"
+        },
+        "expectedSessionId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expectedLifecycleRevision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expectedSessionUpdatedAt": {
+          "type": "number",
+          "minimum": 0
+        },
+        "emitLifecycleHooks": {
+          "type": "boolean"
+        },
+        "archivedOnly": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ModelsListParams": {
+      "type": "object",
+      "properties": {
+        "agentId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sessionKey": {
+          "type": "string",
+          "minLength": 1
+        },
+        "authProfileId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "provider": {
+          "type": "string",
+          "minLength": 1
+        },
+        "includeDetails": {
+          "type": "boolean"
+        },
+        "includeProviderCapabilities": {
+          "type": "boolean"
+        },
+        "includeDefaultModels": {
+          "type": "boolean"
+        },
+        "preparedOnly": {
+          "type": "boolean"
+        },
+        "refresh": {
+          "type": "boolean"
+        },
+        "view": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "default"
+            },
+            {
+              "type": "string",
+              "const": "configured"
+            },
+            {
+              "type": "string",
+              "const": "provider-config"
+            },
+            {
+              "type": "string",
+              "const": "all"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "not": {
+            "properties": {
+              "preparedOnly": {
+                "const": true
+              },
+              "refresh": {
+                "const": true
+              }
+            },
+            "required": [
+              "preparedOnly",
+              "refresh"
+            ]
+          }
+        },
+        {
+          "not": {
+            "required": [
+              "sessionKey",
+              "authProfileId"
+            ]
+          }
+        }
+      ]
+    },
     "ExecApprovalResolveParams": {
       "type": "object",
       "required": [

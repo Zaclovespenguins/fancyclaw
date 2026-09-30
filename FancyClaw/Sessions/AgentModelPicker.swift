@@ -1,0 +1,50 @@
+import ChatCore
+import GatewayProtocol
+import SwiftUI
+
+struct AgentModelPicker: View {
+    @Bindable var store: SessionStore
+    let sessionKey: String
+    let onNewChat: () async -> Void
+
+    private var session: SessionSummary { store.sessions.first(where: { $0.key == sessionKey }) ?? SessionSummary(key: sessionKey) }
+    private var agentName: String {
+        store.agents.first(where: { $0.id == session.agentId })?.name ?? session.agentId ?? "Assistant"
+    }
+
+    var body: some View {
+        Menu {
+            Section("Agent for a new chat") {
+                ForEach(store.agents) { agent in
+                    Button(agent.name ?? agent.id) {
+                        store.selectedAgentID = agent.id
+                        Task { await onNewChat() }
+                    }
+                }
+            }
+            Section("Model for this chat") {
+                ForEach(store.models) { model in
+                    Button {
+                        Task { await store.setModel(model, for: session) }
+                    } label: {
+                        if session.model == model.selectionID { Label(model.name, systemImage: "checkmark") }
+                        else { Text(model.name) }
+                    }
+                    .disabled(model.available == false)
+                }
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Text(agentName)
+                if let model = session.model { Text("· \(model)").foregroundStyle(.secondary).lineLimit(1) }
+                Image(systemName: "chevron.down").font(.caption2)
+            }
+            .font(.caption)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .glassEffect(.regular.interactive(), in: .capsule)
+        }
+        .accessibilityLabel("Choose agent or model")
+        .accessibilityIdentifier("chat.agentModel")
+    }
+}

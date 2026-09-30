@@ -32,6 +32,11 @@ const DEFINITIONS = [
   "ChatHistoryCursorResult",
   "SessionsListParams",
   "SessionRow",
+  "SessionsCreateParams",
+  "SessionsPatchParams",
+  "SessionsResetParams",
+  "SessionsDeleteParams",
+  "ModelsListParams",
   "ExecApprovalResolveParams",
 ];
 

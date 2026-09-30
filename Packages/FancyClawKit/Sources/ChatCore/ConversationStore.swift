@@ -2,6 +2,7 @@ import Foundation
 import GatewayClient
 import GatewayProtocol
 import Observation
+import Persistence
 
 /// Owns the visible text transcript and reduces Gateway chat events into it.
 @MainActor @Observable
@@ -10,6 +11,16 @@ public final class ConversationStore {
     public private(set) var messages: [ConversationMessage] = []
     public private(set) var isStreaming = false
     public var errorMessage: String?
+    public private(set) var hasMoreHistory = false
+    public private(set) var isLoadingHistory = false
+    public private(set) var deltaCursor: String?
+    private var nextOffset: Int?
+    private var sessionID: String?
+    private var canonicalHistory: [ChatMessage] = []
+    private let cache: TranscriptCache?
+    private var invalidated = false
+    private var needsRefresh = false
+    private var transcriptRevision = 0
 
     private let connection: GatewayConnection
     private var eventTask: Task<Void, Never>?
@@ -29,9 +40,127 @@ public final class ConversationStore {
         let messageID: String
     }
 
-    public init(connection: GatewayConnection, sessionKey: String = SessionKey.main.rawValue) {
+    public init(connection: GatewayConnection, sessionKey: String = SessionKey.main.rawValue, cache: TranscriptCache? = nil) {
         self.connection = connection
         self.sessionKey = sessionKey
+        self.cache = cache
+        do {
+            if let page = try cache?.history(sessionKey) { applyPage(page) }
+        } catch { errorMessage = "Couldn’t read cached history. \(error.localizedDescription)" }
+    }
+
+    /// Fetches a tail snapshot or catches up from the last durable cursor.
+    public func refreshHistory() async {
+        guard !invalidated else { return }
+        guard !isLoadingHistory else { needsRefresh = true; return }
+        isLoadingHistory = true
+        let revision = transcriptRevision
+        defer { finishLoadingHistory() }
+        do {
+            if let deltaCursor {
+                let catchUp: ChatHistoryCatchUp = try await connection.request("chat.history",
+                    params: ChatHistoryParams(sessionKey: sessionKey, cursor: deltaCursor), returning: ChatHistoryCatchUp.self)
+                guard !invalidated else { return }
+                guard revision == transcriptRevision else { needsRefresh = true; return }
+                if case .delta(let delta) = catchUp {
+                    let oldCount = canonicalHistory.count
+                    canonicalHistory = Self.merging(canonicalHistory, with: delta.messages)
+                    if let nextOffset { self.nextOffset = nextOffset + canonicalHistory.count - oldCount }
+                    self.deltaCursor = delta.deltaCursor
+                    reconcileHistory(canonicalHistory)
+                    updateRunState(delta.sessionInfo)
+                    errorMessage = nil
+                    try persistHistory()
+                    return
+                }
+            }
+            let page: ChatHistoryPage = try await connection.request("chat.history",
+                params: ChatHistoryParams(sessionKey: sessionKey, limit: 100), returning: ChatHistoryPage.self)
+            guard !invalidated else { return }
+            guard revision == transcriptRevision else { needsRefresh = true; return }
+            errorMessage = nil
+            applyPage(page)
+            try persistHistory()
+        } catch { errorMessage = "Couldn’t refresh the conversation. \(error.localizedDescription)" }
+    }
+
+    public func loadOlderHistory() async {
+        guard !invalidated, hasMoreHistory, let offset = nextOffset, !isLoadingHistory else { return }
+        isLoadingHistory = true
+        let revision = transcriptRevision
+        defer { finishLoadingHistory() }
+        do {
+            let page: ChatHistoryPage = try await connection.request("chat.history",
+                params: ChatHistoryParams(sessionKey: sessionKey, limit: 100, offset: offset), returning: ChatHistoryPage.self)
+            guard !invalidated else { return }
+            guard revision == transcriptRevision else { needsRefresh = true; return }
+            errorMessage = nil
+            // A reset during pagination invalidates the page and its offsets.
+            if let old = sessionID, let new = page.sessionId, old != new {
+                deltaCursor = nil
+                hasMoreHistory = false
+                nextOffset = nil
+                needsRefresh = true
+                return
+            } else {
+                canonicalHistory = Self.merging(page.messages, with: canonicalHistory)
+                reconcileHistory(canonicalHistory)
+                hasMoreHistory = page.hasMore == true && page.nextOffset != offset && page.nextOffset != nil
+                nextOffset = page.nextOffset
+                // An older page must never roll the catch-up cursor backwards.
+            }
+            try persistHistory()
+        } catch { errorMessage = "Couldn’t load older messages. \(error.localizedDescription)" }
+    }
+
+    private func finishLoadingHistory() {
+        isLoadingHistory = false
+        if needsRefresh && !invalidated {
+            needsRefresh = false
+            Task { [weak self] in await self?.refreshHistory() }
+        }
+    }
+
+    private func applyPage(_ page: ChatHistoryPage) {
+        if let old = sessionID, let new = page.sessionId, old != new {
+            messages = []
+            outbox.removeAll()
+            runs.removeAll()
+            runIDsByIdempotencyKey.removeAll()
+            assistantEntryIDsByRunID.removeAll()
+            activeRunID = nil
+            isStreaming = false
+        }
+        sessionID = page.sessionId
+        deltaCursor = page.deltaCursor
+        hasMoreHistory = page.hasMore == true && page.nextOffset != nil
+        nextOffset = page.nextOffset
+        reconcileHistory(page.messages)
+        updateRunState(page.sessionInfo)
+    }
+
+    private func updateRunState(_ info: ChatSessionInfo?) {
+        guard let info else { return }
+        isStreaming = info.hasActiveRun == true
+        activeRunID = info.activeRunIds?.first
+        if !isStreaming {
+            for index in messages.indices { messages[index].isStreaming = false }
+        }
+    }
+
+    private func persistHistory() throws {
+        try cache?.saveHistory(ChatHistoryPage(sessionKey: sessionKey, sessionId: sessionID,
+            messages: canonicalHistory, hasMore: hasMoreHistory, nextOffset: nextOffset, deltaCursor: deltaCursor))
+    }
+
+    private static func merging(_ initial: [ChatMessage], with updates: [ChatMessage]) -> [ChatMessage] {
+        var result: [ChatMessage] = []
+        var positions: [String: Int] = [:]
+        for message in initial + updates {
+            if let index = positions[message.historyIdentity] { result[index] = message }
+            else { positions[message.historyIdentity] = result.count; result.append(message) }
+        }
+        return result
     }
 
     /// Registers for Gateway events and consumes them until cancelled.
@@ -44,6 +173,11 @@ public final class ConversationStore {
                 self?.receive(frame)
             }
         }
+    }
+
+    public func invalidate() {
+        invalidated = true
+        stopListening()
     }
 
     public func stopListening() {
@@ -83,9 +217,10 @@ public final class ConversationStore {
 
     /// Reconciles the visible transcript with a Gateway history snapshot while retaining unconfirmed echoes.
     public func reconcileHistory(_ history: [ChatMessage]) {
+        canonicalHistory = Self.merging([], with: history)
         var canonical: [ConversationMessage] = []
         var confirmedKeys: Set<String> = []
-        for message in history {
+        for message in canonicalHistory {
             let role: MessageRole
             switch message.role {
             case .user: role = .user
@@ -95,9 +230,7 @@ public final class ConversationStore {
             if role == .assistant, let runID = message.metadata?.runId, let entryID = message.entryId {
                 adoptAssistantEntryID(entryID, for: runID)
             }
-            let id = message.entryId
-                ?? message.idempotencyKey.map { "\($0):user" }
-                ?? "history:\(message.metadata?.runId ?? "unknown"):\(canonical.count)"
+            let id = message.historyIdentity
             if let key = message.idempotencyKey { confirmedKeys.insert(key) }
             let currentStreaming = messages.first(where: { $0.id == id || $0.id == assistantMessageID(for: message.metadata?.runId ?? "") })
             canonical.append(ConversationMessage(
@@ -121,13 +254,14 @@ public final class ConversationStore {
 
     /// Public for deterministic reducer tests and callers that already own an event stream.
     public func receive(_ frame: GatewayEventFrame) {
-        guard case .chat(let event) = frame.event,
+        guard !invalidated, case .chat(let event) = frame.event,
               event.sessionKey == sessionKey,
               !event.runId.isEmpty else { return }
 
         var run = runs[event.runId, default: RunState()]
         guard !run.isTerminal, event.seq > run.lastSequence else { return }
         run.lastSequence = event.seq
+        transcriptRevision += 1
 
         switch event.state {
         case .status:
@@ -164,10 +298,14 @@ public final class ConversationStore {
             break
         }
         runs[event.runId] = run
+        if run.isTerminal, cache != nil {
+            Task { [weak self] in await self?.refreshHistory() }
+        }
     }
 
     private func submit(_ text: String, idempotencyKey: String, existingMessageID: String? = nil) async {
-        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        guard !invalidated, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        transcriptRevision += 1
         let messageID = existingMessageID ?? "\(idempotencyKey):user"
         if existingMessageID == nil {
             messages.append(ConversationMessage(id: messageID, role: .user, text: text))

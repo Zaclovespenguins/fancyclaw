@@ -3,6 +3,8 @@ import Foundation
 import GatewayClient
 import GatewayProtocol
 import Observation
+import Persistence
+import SwiftData
 #if DEBUG
 import TestSupport
 #endif
@@ -10,6 +12,10 @@ import TestSupport
 @Observable
 final class AppModel {
     private(set) var conversation: ConversationStore?
+    private(set) var sessions: SessionStore?
+    private var cache: TranscriptCache?
+    private var cacheContainer: ModelContainer?
+    private var conversations: [String: ConversationStore] = [:]
     private(set) var status: ConnectionStatus = .offline
     private(set) var initialProfile: GatewayProfile?
     private(set) var isPreparing = true
@@ -21,6 +27,7 @@ final class AppModel {
     private var isForeground = true
     private var prepared = false
     private var isTestMode = false
+    private var isConnecting = false
     #if DEBUG
     private var fake: FakeGateway?
     #endif
@@ -41,9 +48,7 @@ final class AppModel {
                 guard let hello else { throw ConnectionError.missingPayload }
                 let fake = FakeGateway(replies: Array(repeating: .hello(hello), count: 30))
                 fake.streamChatReply("Hello from FakeGateway.")
-                fake.reply(to: "chat.history", with: .object([
-                    "sessionKey": .string(SessionKey.main.rawValue), "messages": .array([])
-                ]))
+                fake.enableSessions()
                 self.fake = fake
                 initialProfile = GatewayProfile(url: try await fake.start(), token: "test-token")
                 if ProcessInfo.processInfo.arguments.contains("-DemoConversation"), let initialProfile {
@@ -64,8 +69,13 @@ final class AppModel {
                 session = .shared
             }
             let connection = GatewayConnection(identity: try identityStore.loadOrCreate(), identityStore: identityStore, session: session)
+            configure(profile: profile, connection: connection)
+            isPreparing = false
+            isConnecting = true
+            defer { isConnecting = false }
             let hello = try await connection.connect(to: profile.url, token: profile.token,
                 bootstrapToken: profile.bootstrapToken, password: profile.password)
+            guard self.connection === connection else { return }
             await activate(profile: profile, connection: connection, hello: hello)
         } catch {
             errorMessage = error.localizedDescription
@@ -73,18 +83,11 @@ final class AppModel {
     }
 
     func activate(profile: GatewayProfile, connection: GatewayConnection, hello: HelloOK) async {
-        self.connection = connection
-        let conversation = ConversationStore(connection: connection)
-        await conversation.start()
-        self.conversation = conversation
-        let lifecycle = ConnectionLifecycle(connection: connection, resync: { [weak conversation] in
-            do {
-                let page: ChatHistoryPage = try await connection.request("chat.history",
-                    params: ChatHistoryParams(sessionKey: SessionKey.main.rawValue, limit: 100), returning: ChatHistoryPage.self)
-                await conversation?.reconcileHistory(page.messages)
-            } catch {
-                await MainActor.run { conversation?.errorMessage = "Couldn’t refresh the conversation. \(error.localizedDescription)" }
-            }
+        if self.connection !== connection { configure(profile: profile, connection: connection) }
+        await conversation?.start()
+        await sessions?.start()
+        let lifecycle = ConnectionLifecycle(connection: connection, resync: { [weak self] in
+            await self?.resync()
         })
         self.lifecycle = lifecycle
         await lifecycle.start(profile: profile, hello: hello)
@@ -94,8 +97,14 @@ final class AppModel {
             for await status in statuses {
                 guard !Task.isCancelled else { return }
                 self?.status = status
-                if status != .connected { self?.conversation?.connectionDidDisconnect() }
+                if status != .connected {
+                    for store in self?.conversations.values ?? [:].values { store.connectionDidDisconnect() }
+                }
             }
+        }
+        Task { [weak self] in
+            await self?.resync()
+            await self?.sessions?.loadCatalogs()
         }
         pathTask = Task {
             for await reachable in NetworkAvailability().updates() {
@@ -105,9 +114,76 @@ final class AppModel {
         }
     }
 
+    private func configure(profile: GatewayProfile, connection: GatewayConnection) {
+        self.connection = connection
+        initialProfile = profile
+        do {
+            if cacheContainer == nil { cacheContainer = try TranscriptCache.makeContainer(inMemory: isTestMode) }
+            if let cacheContainer { cache = TranscriptCache(container: cacheContainer, gateway: profile.url.absoluteString) }
+        } catch { errorMessage = "Couldn’t open the chat cache. \(error.localizedDescription)" }
+        let sessions = SessionStore(connection: connection, cache: cache)
+        sessions.onInvalidatedSession = { [weak self] key in
+            await self?.invalidateSession(key)
+        }
+        self.sessions = sessions
+        let conversation = ConversationStore(connection: connection, cache: cache)
+        conversations[conversation.sessionKey] = conversation
+        self.conversation = conversation
+    }
+
+    private func resync() async {
+        await sessions?.refresh()
+        for store in conversations.values { await store.refreshHistory() }
+    }
+
+    func selectSession(_ key: String) async {
+        guard let connection else { return }
+        let store = conversations[key] ?? ConversationStore(connection: connection, sessionKey: key, cache: cache)
+        conversations[key] = store
+        conversation = store
+        await store.start()
+        await store.refreshHistory()
+    }
+
+    func newChat() async {
+        if let key = await sessions?.create() { await selectSession(key) }
+    }
+
+    private func invalidateSession(_ key: String) async {
+        conversations.removeValue(forKey: key)?.invalidate()
+        guard conversation?.sessionKey == key else { return }
+        let next = sessions?.sessions.contains(where: { $0.key == key }) == true ? key : SessionKey.main.rawValue
+        await selectSession(next)
+    }
+
+    func reconnect() async {
+        guard !isConnecting else { return }
+        if let lifecycle {
+            await lifecycle.setForeground(false)
+            await lifecycle.setForeground(isForeground)
+            return
+        }
+        guard let connection, let profile = initialProfile else { return }
+        isConnecting = true
+        status = .reconnecting
+        defer { isConnecting = false }
+        do {
+            let hello = try await connection.connect(to: profile.url, token: profile.token,
+                bootstrapToken: profile.bootstrapToken, password: profile.password)
+            guard self.connection === connection else { return }
+            errorMessage = nil
+            await activate(profile: profile, connection: connection, hello: hello)
+        } catch {
+            guard self.connection === connection else { return }
+            status = .offline
+            errorMessage = error.localizedDescription
+        }
+    }
+
     func setForeground(_ value: Bool) async {
         isForeground = value
         await lifecycle?.setForeground(value)
+        if value && lifecycle == nil && conversation != nil { await reconnect() }
     }
 
     func disconnect() async {
@@ -115,8 +191,12 @@ final class AppModel {
         pathTask?.cancel()
         await lifecycle?.stop()
         await connection?.disconnect()
-        conversation?.stopListening()
+        for store in conversations.values { store.stopListening() }
+        conversations.removeAll()
+        sessions?.stop()
+        sessions = nil
         conversation = nil
+        cache = nil
         lifecycle = nil
         connection = nil
         status = .offline

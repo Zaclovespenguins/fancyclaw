@@ -1,4 +1,5 @@
 import SwiftUI
+import ChatCore
 import GatewayClient
 import GatewayProtocol
 
@@ -13,7 +14,10 @@ struct ContentView: View {
                     .navigationTitle("FancyClaw")
                     .navigationBarTitleDisplayMode(.inline)
             } else if let conversation = model.conversation {
-                ChatView(store: conversation, connectionStatus: model.status.rawValue, onDisconnect: disconnect)
+                ChatView(store: conversation, sessions: model.sessions, connectionStatus: model.status.rawValue,
+                    onDisconnect: disconnect, onReconnect: { Task { await model.reconnect() } }, onSelectSession: { key in await model.selectSession(key) },
+                    onNewChat: { await model.newChat() })
+                    .id(conversation.sessionKey)
             } else {
                 OnboardingView(onConnected: connected, initialProfile: model.initialProfile)
             }

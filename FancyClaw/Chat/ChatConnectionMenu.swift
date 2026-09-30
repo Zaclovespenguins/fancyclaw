@@ -3,6 +3,7 @@ import SwiftUI
 struct ChatConnectionMenu: View {
     let status: String
     let onDisconnect: () -> Void
+    var onReconnect: () -> Void = {}
 
     private var statusColor: Color {
         if status.localizedCaseInsensitiveContains("reconnect") { return .orange }
@@ -15,6 +16,9 @@ struct ChatConnectionMenu: View {
 
     var body: some View {
         Menu {
+            if status != "Connected" {
+                Button("Reconnect", systemImage: "arrow.clockwise", action: onReconnect)
+            }
             Button("Disconnect", systemImage: "xmark.circle", role: .destructive, action: onDisconnect)
         } label: {
             Label {

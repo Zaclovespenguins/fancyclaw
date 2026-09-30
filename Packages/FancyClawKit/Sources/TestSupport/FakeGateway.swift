@@ -30,6 +30,23 @@ public final class FakeGateway: @unchecked Sendable {
     private var chatReply: String?
     private var activeRuns: [String: String] = [:]
     private var rpcReplies: [String: JSONValue] = [:]
+    private var queuedRPCReplies: [String: [JSONValue]] = [:]
+    private var sessionSupport = false
+    private var sessionRows: [SessionSummary] = []
+    private var histories: [String: [ChatMessage]] = [:]
+    private var cursorVersion = 0
+
+    /// A small stateful session service used only by debug app launches and session integration tests.
+    public func enableSessions() {
+        lock.withLock {
+            sessionSupport = true
+            sessionRows = [SessionSummary(key: "agent:main:main", sessionId: "fake-main", agentId: "main", displayName: "Main chat")]
+        }
+    }
+
+    public func reply(to method: String, withSequence payloads: [JSONValue]) {
+        lock.withLock { queuedRPCReplies[method] = payloads }
+    }
     public let challenge: ConnectChallenge
 
     public init(replies: [Reply], challenge: ConnectChallenge = .init(nonce: "fake-nonce", ts: 1_737_264_000_000)) {
@@ -141,10 +158,26 @@ public final class FakeGateway: @unchecked Sendable {
             do {
                 let request = try GatewayCoding.decoder().decode(RequestFrame<JSONValue>.self, from: data)
                 lock.withLock { rpcRequests.append(request) }
-                if request.method == "chat.send", let text = lock.withLock({ chatReply }),
+                if let scripted = lock.withLock({ () -> JSONValue? in
+                    guard var queue = queuedRPCReplies[request.method], !queue.isEmpty else { return nil }
+                    let next = queue.removeFirst()
+                    queuedRPCReplies[request.method] = queue
+                    return next
+                }) {
+                    send(ResponseFrame(id: request.id, ok: true, payload: scripted), on: connection)
+                } else if let payload = try sessionReply(request) {
+                    send(ResponseFrame(id: request.id, ok: true, payload: payload), on: connection)
+                } else if request.method == "chat.send", let text = lock.withLock({ chatReply }),
                    let runID = request.params?["idempotencyKey"]?.stringValue,
                    let sessionKey = request.params?["sessionKey"]?.stringValue {
-                    lock.withLock { activeRuns[runID] = sessionKey }
+                    lock.withLock {
+                        activeRuns[runID] = sessionKey
+                        if sessionSupport {
+                            histories[sessionKey, default: []].append(ChatMessage(role: .user, content: [.text(request.params?["message"]?.stringValue ?? "")],
+                                idempotencyKey: runID, metadata: .init(id: runID + ":user")))
+                            cursorVersion += 1
+                        }
+                    }
                     send(ResponseFrame(id: request.id, ok: true,
                         payload: ChatSendResponse(runId: runID, status: .started)), on: connection)
                     Task {
@@ -153,6 +186,13 @@ public final class FakeGateway: @unchecked Sendable {
                             sessionKey: sessionKey, seq: 1, state: .delta(.init(deltaText: text))))), on: connection)
                         try? await Task.sleep(for: .milliseconds(150))
                         guard self.lock.withLock({ self.activeRuns.removeValue(forKey: runID) != nil }) else { return }
+                        self.lock.withLock {
+                            if self.sessionSupport {
+                                self.histories[sessionKey, default: []].append(ChatMessage(role: .assistant, content: [.text(text)],
+                                    metadata: .init(id: runID + ":assistant", runId: runID)))
+                                self.cursorVersion += 1
+                            }
+                        }
                         self.send(GatewayEventFrame(event: .chat(ChatEvent(runId: runID,
                             sessionKey: sessionKey, seq: 2, state: .final(.init(
                                 message: ChatMessage(role: .assistant, content: [.text(text)])))))), on: connection)
@@ -175,6 +215,64 @@ public final class FakeGateway: @unchecked Sendable {
                 }
                 receiveRequest(on: connection)
             } catch { lock.withLock { failures.append(error) } }
+        }
+    }
+
+    private func sessionReply(_ request: RequestFrame<JSONValue>) throws -> JSONValue? {
+        try lock.withLock {
+            guard sessionSupport else { return nil }
+            switch request.method {
+            case "sessions.subscribe": return .object(["subscribed": .bool(true)])
+            case "sessions.list":
+                let query = request.params?["search"]?.stringValue ?? ""
+                let rows = sessionRows.filter { $0.archived != true && (query.isEmpty || ($0.title ?? "New chat").localizedStandardContains(query)) }
+                let offset = request.params?["offset"]?.intValue ?? 0
+                let limit = request.params?["limit"]?.intValue ?? 60
+                return try JSONValue(encoding: SessionsListResult(sessions: Array(rows.dropFirst(offset).prefix(limit)),
+                    hasMore: rows.count > offset + limit, nextOffset: offset + limit))
+            case "agents.list": return .object(["defaultId": .string("main"), "agents": .array([
+                .object(["id": .string("main"), "name": .string("OpenClaw")]),
+                .object(["id": .string("helper"), "name": .string("Helper")])])])
+            case "models.list": return .object(["models": .array([.object([
+                "id": .string("fake-model"), "name": .string("Fake model"), "provider": .string("test"), "available": .bool(true)])])])
+            case "sessions.create":
+                let agent = request.params?["agentId"]?.stringValue ?? "main"
+                let id = UUID().uuidString
+                let row = SessionSummary(key: "agent:\(agent):\(id)", sessionId: id, agentId: agent,
+                    updatedAt: Date().timeIntervalSince1970 * 1000)
+                sessionRows.insert(row, at: 0)
+                return .object(["ok": .bool(true), "key": .string(row.key), "sessionId": .string(id)])
+            case "sessions.patch":
+                if let index = sessionRows.firstIndex(where: { $0.key == request.params?["key"]?.stringValue }) {
+                    if let label = request.params?["label"]?.stringValue { sessionRows[index].label = label }
+                    if let model = request.params?["model"]?.stringValue { sessionRows[index].model = model }
+                    if let archived = request.params?["archived"]?.boolValue { sessionRows[index].archived = archived }
+                }
+                return .object(["ok": .bool(true)])
+            case "sessions.reset":
+                let key = request.params?["key"]?.stringValue ?? ""
+                histories[key] = []
+                if let index = sessionRows.firstIndex(where: { $0.key == key }) { sessionRows[index].sessionId = UUID().uuidString }
+                cursorVersion += 1
+                return .object(["ok": .bool(true)])
+            case "sessions.delete":
+                let key = request.params?["key"]?.stringValue ?? ""
+                sessionRows.removeAll { $0.key == key }
+                histories.removeValue(forKey: key)
+                return .object(["ok": .bool(true)])
+            case "chat.history":
+                let key = request.params?["sessionKey"]?.stringValue ?? "agent:main:main"
+                let history = histories[key] ?? []
+                let info = ChatSessionInfo(key: key, hasActiveRun: activeRuns.values.contains(key),
+                    activeRunIds: activeRuns.filter { $0.value == key }.map(\.key))
+                if request.params?["cursor"] != nil {
+                    return try JSONValue(encoding: ChatHistoryCatchUp.delta(.init(messages: history, deltaCursor: "cursor:\(cursorVersion)", sessionInfo: info)))
+                }
+                return try JSONValue(encoding: ChatHistoryPage(sessionKey: key,
+                    sessionId: sessionRows.first(where: { $0.key == key })?.sessionId,
+                    messages: history, sessionInfo: info, hasMore: false, deltaCursor: "cursor:\(cursorVersion)"))
+            default: return nil
+            }
         }
     }
 

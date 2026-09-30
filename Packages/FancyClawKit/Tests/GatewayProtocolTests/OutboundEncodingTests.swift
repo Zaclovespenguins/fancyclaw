@@ -82,3 +82,28 @@ struct OutboundEncodingTests {
         #expect(Set(modes) == Set(GatewayClientMode.allCases.map(\.rawValue)))
     }
 }
+
+@Suite("Session requests match pinned schema")
+struct SessionRequestEncodingTests {
+    @Test func sessionMutationsAndCatalogs() throws {
+        let schema = try Fixtures.schema()
+        let cases: [(JSONValue, String)] = [
+            (try JSONValue(encoding: SessionsCreateParams(agentId: "main", idempotencyKey: "new-key")), "SessionsCreateParams"),
+            (try JSONValue(encoding: SessionsPatchParams(key: "s", label: "Title", model: "provider/model", archived: true, expectedSessionId: "id")), "SessionsPatchParams"),
+            (try JSONValue(encoding: SessionKeyParams(key: "s", expectedSessionId: "id")), "SessionsResetParams"),
+            (try JSONValue(encoding: SessionsDeleteParams(key: "s", expectedSessionId: "id")), "SessionsDeleteParams"),
+            (try JSONValue(encoding: ModelsListParams()), "ModelsListParams")
+        ]
+        for (params, definition) in cases { #expect(schema.violations(of: params, against: definition).isEmpty) }
+        #expect(try JSONValue(encoding: SessionsCreateParams(idempotencyKey: "key")) == ["idempotencyKey": "key"])
+        #expect(try JSONValue(encoding: SessionsPatchParams(key: "s", label: "Title")) == ["key": "s", "label": "Title"])
+    }
+
+    @Test func changedEventDecodesMissingKeyAndFutureReason() throws {
+        let value: JSONValue = ["type": "event", "event": "sessions.changed", "payload": ["reason": "future", "ts": 1]]
+        let frame = try value.decode(as: GatewayEventFrame.self)
+        guard case .sessionsChanged(let changed) = frame.event else { Issue.record("Expected session change"); return }
+        #expect(changed.sessionKey == nil)
+        #expect(changed.reason == "future")
+    }
+}
