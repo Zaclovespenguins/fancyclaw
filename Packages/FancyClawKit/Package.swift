@@ -37,7 +37,11 @@ let package = Package(
         ),
 
         // FakeGateway, fixtures, and helpers shared by tests and UI-test launch modes.
-        .target(name: "TestSupport", dependencies: ["GatewayProtocol"]),
+        .target(
+            name: "TestSupport",
+            dependencies: ["GatewayProtocol"],
+            resources: [.copy("Fixtures")]
+        ),
 
         .testTarget(name: "GatewayProtocolTests", dependencies: ["GatewayProtocol", "TestSupport"]),
         .testTarget(name: "GatewayClientTests", dependencies: ["GatewayClient", "TestSupport"]),
