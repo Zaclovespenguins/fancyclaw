@@ -9,6 +9,8 @@ struct OnboardingView: View {
     var onConnected: (GatewayProfile, GatewayConnection, HelloOK) -> Void
     var initialProfile: GatewayProfile?
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @AppStorage("hapticsEnabled") private var hapticsEnabled = true
     @State private var model = OnboardingModel()
     @State private var selectedNearby: GatewayProfile?
     @State private var showingScanner = false
@@ -16,8 +18,13 @@ struct OnboardingView: View {
     var body: some View {
         VStack(spacing: 0) {
                 header
+                if let message = model.errorMessage {
+                    ErrorBanner(message: message) { model.errorMessage = nil }
+                        .padding(.horizontal)
+                        .padding(.bottom, 8)
+                }
                 if case .waiting(let requestID, let remaining) = model.state {
-                    waitingView(requestID: requestID, remaining: remaining)
+                    ScrollView { waitingView(requestID: requestID, remaining: remaining) }
                 } else {
                     TabView(selection: $model.selectedPage) {
                         welcomePage.tag(0)
@@ -25,6 +32,7 @@ struct OnboardingView: View {
                         nearbyPage.tag(2)
                     }
                     .tabViewStyle(.page(indexDisplayMode: .always))
+                    .indexViewStyle(.page(backgroundDisplayMode: .always))
                 }
             }
             .background {
@@ -72,73 +80,105 @@ struct OnboardingView: View {
                 else { model.stopDiscovery() }
             }
             .onDisappear { model.stopDiscovery() }
+            .sensoryFeedback(.error, trigger: model.errorMessage) { (_: String?, value: String?) in hapticsEnabled && value != nil }
     }
 
     private var header: some View {
         VStack(spacing: 12) {
-            Image(systemName: "pawprint.fill")
-                .font(.system(size: 36, weight: .semibold))
-                .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(.tint)
-                .padding(18)
-                .glassEffect(.regular, in: .circle)
+            if !dynamicTypeSize.isAccessibilitySize {
+                Image(systemName: "pawprint.fill")
+                    .font(.largeTitle)
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(.tint)
+                    .padding(18)
+                    .glassEffect(.regular, in: .circle)
+                    .accessibilityHidden(true)
+            }
             Text("FancyClaw")
-                .font(.largeTitle.weight(.bold))
-            Text("Your private window into OpenClaw")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .font(.largeTitle.bold())
+            if !dynamicTypeSize.isAccessibilitySize {
+                Text("Your private window into OpenClaw")
+                    .font(.subheadline)
+                    .foregroundStyle(Color.primary)
+            }
         }
-        .padding(.top, 24)
+        .padding(.top, dynamicTypeSize.isAccessibilitySize ? 8 : 24)
         .padding(.bottom, 12)
     }
 
     private var welcomePage: some View {
-        VStack(spacing: 18) {
-            ContentUnavailableView("Your Gateway, at hand", systemImage: "point.3.connected.trianglepath.dotted",
-                                   description: Text("Connect securely to your OpenClaw Gateway to see your sessions and chat."))
-            Button("Set up connection", systemImage: "arrow.right") { model.selectedPage = 1 }
+        ScrollView {
+            VStack(spacing: 18) {
+                ContentUnavailableView {
+                    Label {
+                        Text("Your Gateway, at hand").foregroundStyle(Color.primary)
+                    } icon: {
+                        Image(systemName: "point.3.connected.trianglepath.dotted")
+                            .foregroundStyle(Color.primary)
+                    }
+                } description: {
+                    Text("Connect securely to your OpenClaw Gateway to see your sessions and chat.")
+                        .foregroundStyle(Color.primary)
+                }
+                Button { model.selectedPage = 1 } label: {
+                    Label("Set up connection", systemImage: "arrow.right")
+                        .foregroundStyle(Color(uiColor: .systemBackground))
+                }
                 .buttonStyle(.borderedProminent)
-            Spacer(minLength: 0)
+            }
+            .padding(20)
+            .background(.background, in: .rect(cornerRadius: 24))
+            .padding(.horizontal)
+            .padding(.bottom, 48)
         }
-        .padding(.horizontal)
-        .padding(.bottom, 72)
+    }
+
+    private var setupCodeActions: some View {
+        Group {
+            Button("Use code", systemImage: "arrow.down.doc") { model.applyCode() }
+            Button("Scan QR", systemImage: "qrcode.viewfinder") { showingScanner = true }
+                .disabled(!DataScannerViewController.isSupported || !DataScannerViewController.isAvailable)
+        }
+        .frame(minHeight: 44)
+        .buttonStyle(.borderless)
     }
 
     private var connectPage: some View {
         Form {
-            Section("Setup code") {
-                TextField("Paste setup code", text: $model.setupCode, axis: .vertical)
+            Section {
+                TextField("Paste setup code", text: $model.setupCode, prompt: Text("Paste setup code").foregroundStyle(Color.primary.opacity(0.65)), axis: .vertical)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
-                HStack {
-                    Button("Use code", systemImage: "arrow.down.doc") { model.applyCode() }
-                    Button("Scan QR", systemImage: "qrcode.viewfinder") { showingScanner = true }
-                        .disabled(!DataScannerViewController.isSupported || !DataScannerViewController.isAvailable)
+                ViewThatFits(in: .horizontal) {
+                    HStack { setupCodeActions }
+                    VStack(alignment: .leading) { setupCodeActions }
                 }
                 PasteButton(payloadType: String.self) { values in
                     if let value = values.first { model.setupCode = value; model.applyCode() }
                 }
+            } header: {
+                HStack { Text("Setup code").font(.headline).foregroundStyle(Color.primary) }
             }
-            Section("Manual connection") {
-                TextField("Gateway URL (wss:// or ws://)", text: $model.urlText)
+            Section {
+                TextField("Gateway URL", text: $model.urlText, prompt: Text("Gateway URL").foregroundStyle(Color.primary.opacity(0.65)))
                     .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
-                SecureField("Access token", text: $model.token)
-                SecureField("Password", text: $model.password)
+                SecureField("Access token", text: $model.token, prompt: Text("Access token").foregroundStyle(Color.primary.opacity(0.65)))
+                SecureField("Password", text: $model.password, prompt: Text("Password").foregroundStyle(Color.primary.opacity(0.65)))
                 Button {
                     model.connectManual()
                 } label: {
                     if model.isConnecting { ProgressView().frame(maxWidth: .infinity) }
-                    else { Text("Connect").frame(maxWidth: .infinity) }
+                    else { Text("Connect").foregroundStyle(Color(uiColor: .systemBackground)).frame(maxWidth: .infinity) }
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(model.isConnecting)
+                .accessibilityLabel(model.isConnecting ? "Connecting" : "Connect")
                 .accessibilityIdentifier("onboarding.connect")
-            }
-            if let message = model.errorMessage {
-                Section { Label(message, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red) }
+            } header: {
+                HStack { Text("Manual connection").font(.headline).foregroundStyle(Color.primary) }
             }
         }
-        .scrollContentBackground(.hidden)
+        .safeAreaInset(edge: .bottom) { Color.clear.frame(height: 44) }
     }
 
     private var nearbyPage: some View {
@@ -188,7 +228,6 @@ struct OnboardingView: View {
             }
             Text("Expires in about \(max(0, Int(remaining.components.seconds / 60))) min")
                 .font(.caption).foregroundStyle(.secondary)
-            if let message = model.errorMessage { Text(message).foregroundStyle(.red) }
             Button("Cancel connection", role: .cancel) { model.cancel() }
         }
         .padding(28)

@@ -4,6 +4,7 @@ import Textual
 struct MarkdownCodeBlock: View {
     let configuration: StructuredText.CodeBlockStyleConfiguration
     @State private var copied = false
+    @AppStorage("hapticsEnabled") private var hapticsEnabled = true
 
     var body: some View {
         // The outer Overflow excludes the entire card from the document selection overlay.
@@ -15,8 +16,12 @@ struct MarkdownCodeBlock: View {
                         .font(.caption.monospaced())
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Button(copied ? "Copied" : "Copy", systemImage: copied ? "checkmark" : "doc.on.doc", action: copy)
-                        .font(.caption)
+                    Button(action: copy) {
+                        Label(copied ? "Copied" : "Copy", systemImage: copied ? "checkmark" : "doc.on.doc")
+                            .font(.caption)
+                            .frame(minWidth: 44, minHeight: 44)
+                            .contentShape(.rect)
+                    }
                         .buttonStyle(.plain)
                         .accessibilityLabel(copied ? "Code copied" : "Copy code")
                         .accessibilityIdentifier("markdown.copyCode")
@@ -39,6 +44,7 @@ struct MarkdownCodeBlock: View {
             .frame(width: state.containerWidth, alignment: .leading)
         }
         .textual.textSelection(.disabled)
+        .sensoryFeedback(.success, trigger: copied) { _, value in hapticsEnabled && value }
         .clipShape(.rect(cornerRadius: 14))
         .overlay {
             RoundedRectangle(cornerRadius: 14).stroke(.secondary.opacity(0.2))

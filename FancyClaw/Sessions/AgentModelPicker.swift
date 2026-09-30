@@ -3,6 +3,7 @@ import GatewayProtocol
 import SwiftUI
 
 struct AgentModelPicker: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Bindable var store: SessionStore
     let sessionKey: String
     let onNewChat: () async -> Void
@@ -35,16 +36,19 @@ struct AgentModelPicker: View {
             }
         } label: {
             HStack(spacing: 6) {
-                Text(agentName)
-                if let model = session.model { Text("· \(model)").foregroundStyle(.secondary).lineLimit(1) }
-                Image(systemName: "chevron.down").font(.caption2)
+                Text(agentName).foregroundStyle(Color.primary).lineLimit(1)
+                if !dynamicTypeSize.isAccessibilitySize, let model = session.model { Text("· \(model)").foregroundStyle(.secondary).lineLimit(1) }
+                Image(systemName: "chevron.down").font(.caption)
             }
-            .font(.caption)
+            .font(.subheadline)
+            .frame(minHeight: 28)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .glassEffect(.regular.interactive(), in: .capsule)
         }
-        .accessibilityLabel("Choose agent or model")
+        .accessibilityLabel("\(agentName). Choose agent or model")
+        .accessibilityValue([agentName, session.model].compactMap { $0 }.joined(separator: ", "))
+        .padding(.horizontal)
         .accessibilityIdentifier("chat.agentModel")
     }
 }

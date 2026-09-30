@@ -12,6 +12,10 @@ struct ChatComposer: View {
     let send: (String, [PreparedAttachment]) async -> Bool
     let stop: () -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @AppStorage("hapticsEnabled") private var hapticsEnabled = true
+    @State private var sentCount = 0
+    @State private var stopCount = 0
     @State private var draft = ""
     @State private var selectedPhotos: [PhotosPickerItem] = []
     @State private var showingPhotos = false
@@ -36,13 +40,16 @@ struct ChatComposer: View {
                 HStack { ProgressView(); Text("Preparing attachment…").font(.subheadline) }
             }
             HStack(alignment: .bottom, spacing: 12) {
-                Menu("Attach", systemImage: "plus") {
+                Menu {
                     Button("Photo Library", systemImage: "photo.on.rectangle") { showingPhotos = true }
                     Button("Take Photo", systemImage: "camera") { openCamera() }
                     Button("Choose File", systemImage: "doc") { showingFiles = true }
+                } label: {
+                    Image(systemName: "plus")
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(.rect)
                 }
-                .labelStyle(.iconOnly)
-                .frame(minWidth: 44, minHeight: 44)
+                .accessibilityLabel("Attach")
                 .disabled(isPreparing || isSubmitting)
                 .accessibilityIdentifier("chat.attach")
 
@@ -54,10 +61,11 @@ struct ChatComposer: View {
                     .accessibilityIdentifier("chat.composer")
 
                 Button(isStreaming ? "Stop" : "Send",
-                       systemImage: isStreaming ? "stop.fill" : "arrow.up",
-                       action: isStreaming ? stop : submit)
+                       systemImage: isStreaming ? "stop.fill" : "arrow.up") {
+                    if isStreaming { stopWithFeedback() } else { submit() }
+                }
                     .labelStyle(.iconOnly)
-                    .buttonStyle(ChatComposerButtonStyle(role: isStreaming ? .stop : .send))
+                    .buttonStyle(ChatComposerButtonStyle(role: isStreaming ? .stop : .send, reduceMotion: reduceMotion))
                     .disabled(!isStreaming && (isPreparing || isSubmitting || (draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && attachments.isEmpty)))
                     .accessibilityIdentifier(isStreaming ? "chat.stop" : "chat.send")
                     .accessibilityInputLabels(isStreaming ? ["Stop response", "Stop generating"] : ["Send message"])
@@ -94,10 +102,18 @@ struct ChatComposer: View {
             Button("OK") { attachmentError = nil }
         } message: { Text(attachmentError ?? "") }
         .onDisappear { importTask?.cancel() }
+        .sensoryFeedback(.success, trigger: sentCount) { _, _ in hapticsEnabled }
+        .sensoryFeedback(.impact(weight: .light), trigger: stopCount) { _, _ in hapticsEnabled }
+        .sensoryFeedback(.error, trigger: attachmentError) { (_: String?, value: String?) in hapticsEnabled && value != nil }
     }
 
     private var hasAttachmentError: Binding<Bool> {
         Binding(get: { attachmentError != nil }, set: { if !$0 { attachmentError = nil } })
+    }
+
+    private func stopWithFeedback() {
+        stopCount += 1
+        stop()
     }
 
     private func submit() {
@@ -107,6 +123,7 @@ struct ChatComposer: View {
         isSubmitting = true
         Task {
             if await send(message, uploads) {
+                sentCount += 1
                 draft = ""
                 attachments.removeAll { attachment in uploads.contains { $0.id == attachment.id } }
             }
@@ -181,14 +198,16 @@ private struct ChatComposerButtonStyle: ButtonStyle {
     }
 
     let role: Role
+    let reduceMotion: Bool
+    @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.headline)
-            .foregroundStyle(.white)
+            .foregroundStyle(Color(uiColor: .systemBackground))
             .frame(width: 44, height: 44)
-            .background(role == .send ? Color.accentColor : Color.primary.opacity(0.75), in: Circle())
-            .opacity(configuration.isPressed ? 0.78 : 1)
-            .contentTransition(.symbolEffect(.replace))
+            .background(role == .send ? Color.accentColor : Color.primary, in: Circle())
+            .opacity(!isEnabled ? 0.4 : configuration.isPressed ? 0.78 : 1)
+            .contentTransition(reduceMotion ? .identity : .symbolEffect(.replace))
     }
 }

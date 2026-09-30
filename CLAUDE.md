@@ -8,11 +8,11 @@ A SwiftUI iOS operator client for a single OpenClaw Gateway. `PLAN.md` holds the
 
 ## Current status (2026-09-30)
 
-- Slices 0–10 are implemented and committed: project/protocol, identity/handshake, onboarding, connection recovery, streaming chat, history/session management/private cache, rich output, attachments, exec approvals, and system integration.
-- Slice 11 polish is in progress in the working tree, including accessibility/Dynamic Type changes, error banners, an Icon Composer icon, and `FancyClawUITests/PolishTests.swift`. Its completion is not yet recorded in the deviations log. Inspect `git status` before editing and preserve existing work.
-- Latest recorded full-suite verification is Slice 10 on iPhone 18 Pro / iOS 27.0: **185 passed, 0 failures, 0 skips** (177 Swift Testing + 8 UI tests). This is a historical baseline, not verification of subsequent working-tree changes; logs are linked in the deviations entry.
+- Slices 0–11 are implemented: project/protocol, identity/handshake, onboarding, connection recovery, streaming chat, history/session management/private cache, rich output, attachments, exec approvals, system integration, and polish.
+- Slice 11 includes optional haptics, error banners, accessibility/Dynamic Type fixes, a layered Icon Composer icon, and `FancyClawUITests/PolishTests.swift`. Choices and verification are recorded in the deviations log.
+- Latest full-suite verification is Slice 11 on iPhone 18 Pro / iOS 27.0: **190 passed, 0 failures, 0 skips** (177 Swift Testing + 13 UI tests). Logs and the initial launch measurement are linked in the deviations entry.
 - Personal Team/personal use; no ordinary widgets, launcher widget, App Group, or TestFlight scope. The extension hosts only the New Chat Control and Live Activity. SwiftData is app-private.
-- Physical-device provisioning, camera/Bonjour behavior, real Gateway uploads/pairing/reconnect, local-authentication prompts, spoken Siri/Spotlight, and Control Center gallery placement still need device/live checks. Only iOS 27.0 is installed here; the iOS 26 deployment floor remains unverified.
+- Physical haptic feedback, device provisioning, camera/Bonjour behavior, real Gateway uploads/pairing/reconnect, local-authentication prompts, spoken Siri/Spotlight, and Control Center gallery placement still need device/live checks. Only iOS 27.0 is installed here; the iOS 26 deployment floor remains unverified.
 
 ## Layout
 
@@ -61,7 +61,7 @@ A SwiftUI iOS operator client for a single OpenClaw Gateway. `PLAN.md` holds the
 
 The package imports iOS frameworks; host `swift test` is not the full-suite workflow. Run package tests through the simulator test plan.
 
-Debug launch modes are implemented in `AppModel.prepareOnce()`: `-OnboardingPreview` bypasses saved profiles; `-FakeGateway` shows onboarding with an ephemeral manual endpoint; `-DemoConversation`, `-DemoAttachments`, `-DemoApprovals`, and `-DemoSystemIntegration` connect and seed the relevant screen. `LaunchArgument` currently lists only a subset. Slice 11 adds `-PolishDark` for dark-mode checks, combined with a debug mode and optional `-UIPreferredContentSizeCategoryName UICTContentSizeCategoryXXL`.
+Debug launch modes are implemented in `AppModel.prepareOnce()`: `-OnboardingPreview` bypasses saved profiles; `-FakeGateway` shows onboarding with an ephemeral manual endpoint; `-DemoConversation`, `-DemoAttachments`, `-DemoApprovals`, and `-DemoSystemIntegration` connect and seed the relevant screen. `LaunchArgument` currently lists only a subset. `-PolishLight` and `-PolishDark` force appearance for checks, combined with a debug mode and optional `-UIPreferredContentSizeCategoryName UICTContentSizeCategoryXXL`.
 
 Disk space fluctuates; check `df -h .` before expensive build/test cycles rather than relying on old estimates. If a build hits "No space left on device", stop and tell the owner. Don't delete DerivedData, caches, or simulators.
 

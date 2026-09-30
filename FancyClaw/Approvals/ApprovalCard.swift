@@ -3,6 +3,8 @@ import GatewayProtocol
 import SwiftUI
 
 struct ApprovalCard: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @AppStorage("hapticsEnabled") private var hapticsEnabled = true
     let approval: ConversationApproval
     let store: ApprovalStore
     let isConnected: Bool
@@ -44,7 +46,7 @@ struct ApprovalCard: View {
             }
             if let warning = approval.request.request.warningText {
                 Label(warning, systemImage: "exclamationmark.triangle")
-                    .font(.subheadline).foregroundStyle(.orange)
+                    .font(.subheadline).foregroundStyle(Color.primary)
             }
             if approval.status.isPending {
                 Text("Expires in \(max(0, Int(ceil(approval.request.expiresAt.timeIntervalSince(store.currentDate))))) seconds")
@@ -58,9 +60,16 @@ struct ApprovalCard: View {
                 if let error = approval.errorMessage, error != store.permissionMessage {
                     Text(error).font(.subheadline).foregroundStyle(.red)
                 }
-                ViewThatFits(in: .horizontal) {
-                    HStack { decisions }
-                    VStack(alignment: .leading) { decisions }
+                Group {
+                    if dynamicTypeSize.isAccessibilitySize {
+                        VStack(alignment: .leading, spacing: 12) { decisions }
+                    } else {
+                        ViewThatFits(in: .horizontal) {
+                            HStack(spacing: 8) { decisions }
+                                .fixedSize(horizontal: true, vertical: false)
+                            VStack(alignment: .leading, spacing: 12) { decisions }
+                        }
+                    }
                 }
                 .controlSize(.large)
                 .disabled(!store.hasApprovalScope || !isConnected || approval.status != .pending)
@@ -71,14 +80,30 @@ struct ApprovalCard: View {
         .background(.quaternary, in: .rect(cornerRadius: 18))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("approval.card.\(approval.id)")
+        .sensoryFeedback(.success, trigger: approval.status) { old, new in
+            guard hapticsEnabled, old == .resolving else { return false }
+            if case .resolved = new { return true }
+            return false
+        }
     }
 
     private var decisions: some View {
         ForEach(approval.request.offeredDecisions, id: \.rawValue) { decision in
-            Button(label(for: decision), role: decision == .deny ? .destructive : nil) {
+            Button(role: decision == .deny ? .destructive : nil) {
                 Task { await store.resolve(id: approval.id, decision: decision) }
+            } label: {
+                Text(label(for: decision))
+                    .font(.body.bold())
+                    .foregroundStyle(Color.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 12)
+                    .frame(minHeight: 48)
+                    .background(.background, in: .capsule)
+                    .overlay { Capsule().stroke(.primary.opacity(0.5)) }
+                    .contentShape(.capsule)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.plain)
             .accessibilityIdentifier("approval.\(decision.rawValue).\(approval.id)")
         }
     }

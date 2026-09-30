@@ -2,6 +2,7 @@ import ChatCore
 import SwiftUI
 
 struct AttachmentTray: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let attachments: [PreparedAttachment]
     var remove: ((UUID) -> Void)?
 
@@ -25,17 +26,24 @@ struct AttachmentTray: View {
                         }
                         VStack(alignment: .leading, spacing: 2) {
                             Text(attachment.fileName)
+                                .foregroundStyle(Color.primary)
                                 .font(.subheadline)
-                                .lineLimit(1)
+                                .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
                             Text(Int64(attachment.data.count), format: .byteCount(style: .file))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
-                        .frame(maxWidth: 140, alignment: .leading)
+                        .frame(maxWidth: dynamicTypeSize.isAccessibilitySize ? 240 : 140, alignment: .leading)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityIdentifier(attachment.fileName)
                         if let remove {
-                            Button("Remove \(attachment.fileName)", systemImage: "xmark.circle.fill") { remove(attachment.id) }
-                                .labelStyle(.iconOnly)
-                                .frame(minWidth: 44, minHeight: 44)
+                            Button { remove(attachment.id) } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .frame(minWidth: 44, minHeight: 44)
+                                    .contentShape(.rect)
+                            }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("Remove \(attachment.fileName)")
                                 .accessibilityIdentifier("attachment.remove")
                         }
                     }

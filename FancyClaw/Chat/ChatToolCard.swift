@@ -20,6 +20,7 @@ struct ChatToolCard: View {
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                 }
+                .frame(minHeight: 44)
                 .contentShape(.rect)
             }
             .buttonStyle(.plain)

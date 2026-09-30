@@ -44,14 +44,17 @@ struct ChatView: View {
             LazyVStack(alignment: .leading, spacing: 24) {
                 if store.hasMoreHistory {
                     Button("Load older messages") { loadOlder() }
+                        .frame(minHeight: 44)
                         .disabled(store.isLoadingHistory)
                         .accessibilityIdentifier("chat.older")
                 }
                 if store.messages.isEmpty && (approvals?.approvals(for: store.sessionKey).isEmpty ?? true) {
                     ContentUnavailableView(
-                        "Start a conversation",
+                        connectionStatus == "Connected" ? "Start a conversation" : "No saved messages",
                         systemImage: "bubble.left.and.bubble.right",
-                        description: Text("Send a message to your OpenClaw assistant.")
+                        description: Text(connectionStatus == "Connected"
+                            ? "Send a message to your OpenClaw assistant."
+                            : "Reconnect from the connection menu to load this chat.")
                     )
                     .frame(maxWidth: .infinity, minHeight: 360)
                     .accessibilityIdentifier("chat.emptyState")
@@ -102,11 +105,8 @@ struct ChatView: View {
                     AgentModelPicker(store: sessions, sessionKey: store.sessionKey, onNewChat: onNewChat)
                 }
                 if let errorMessage = store.errorMessage {
-                    Label(errorMessage, systemImage: "exclamationmark.circle.fill")
-                        .font(.subheadline)
-                        .foregroundStyle(.red)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 20)
+                    ErrorBanner(message: errorMessage) { store.errorMessage = nil }
+                        .padding(.horizontal)
                         .accessibilityIdentifier("chat.error")
                 }
 
@@ -126,7 +126,8 @@ struct ChatView: View {
                     HStack(spacing: 5) {
                         Image(systemName: "sidebar.left")
                         if let count = approvals?.pendingCount(), count > 0 {
-                            Text(count, format: .number).font(.caption.bold())
+                            Circle().fill(.tint).frame(width: 8, height: 8)
+                                .accessibilityHidden(true)
                         }
                     }
                 }

@@ -9,6 +9,7 @@ struct SessionsDrawer: View {
     let onSelect: (String) async -> Void
     let onNewChat: () async -> Void
     @Environment(\.dismiss) private var dismiss
+    @State private var detent: PresentationDetent = .large
     @State private var renaming: SessionSummary?
     @State private var newLabel = ""
     @State private var pendingAction: SessionAction?
@@ -34,10 +35,10 @@ struct SessionsDrawer: View {
         NavigationStack {
             List {
                 if let error = store.errorMessage {
-                    Label(error, systemImage: "exclamationmark.circle").foregroundStyle(.red)
+                    ErrorBanner(message: error) { store.errorMessage = nil }
                 }
                 ForEach(groups, id: \.title) { group in
-                    Section(group.title) {
+                    Section {
                         ForEach(group.rows) { session in
                             Button {
                                 dismiss()
@@ -45,7 +46,7 @@ struct SessionsDrawer: View {
                             } label: {
                                 HStack {
                                     VStack(alignment: .leading, spacing: 4) {
-                                        Text(session.title ?? "New chat").foregroundStyle(.primary)
+                                        Text(session.title ?? "New chat").foregroundStyle(Color.primary)
                                         if let preview = session.lastMessagePreview {
                                             Text(preview).font(.caption).foregroundStyle(.secondary).lineLimit(2)
                                         }
@@ -53,7 +54,7 @@ struct SessionsDrawer: View {
                                     Spacer()
                                     if let count = approvals?.pendingCount(for: session.key), count > 0 {
                                         Label("\(count)", systemImage: "terminal")
-                                            .font(.caption.bold()).foregroundStyle(.orange)
+                                            .font(.caption.bold()).foregroundStyle(Color.primary)
                                             .accessibilityLabel("\(count) pending command approvals")
                                             .accessibilityIdentifier("sessions.approvals.\(session.key)")
                                     }
@@ -72,6 +73,8 @@ struct SessionsDrawer: View {
                                 Button("Delete", systemImage: "trash", role: .destructive) { pendingAction = .delete(session) }
                             }
                         }
+                    } header: {
+                        Text(group.title).foregroundStyle(Color.primary)
                     }
                 }
                 if store.hasMoreVisibleSessions {
@@ -81,8 +84,12 @@ struct SessionsDrawer: View {
             }
             .overlay {
                 if store.visibleSessions.isEmpty && !store.isLoading && !store.isSearching && store.errorMessage == nil {
-                    ContentUnavailableView(store.search.isEmpty ? "No chats yet" : "No matching chats",
-                        systemImage: "bubble.left.and.bubble.right", description: Text("Start a new conversation."))
+                    if store.search.isEmpty {
+                        ContentUnavailableView("No chats yet", systemImage: "bubble.left.and.bubble.right",
+                            description: Text("Use New chat to start a conversation."))
+                    } else {
+                        ContentUnavailableView.search(text: store.search)
+                    }
                 }
             }
             .navigationTitle("Chats")
@@ -90,7 +97,10 @@ struct SessionsDrawer: View {
             .refreshable { await store.loadList(); await store.searchSessions() }
             .task(id: store.search) { await store.searchSessions() }
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) { Button("Done") { dismiss() } }
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Done", systemImage: "checkmark") { dismiss() }
+                        .labelStyle(.iconOnly)
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("New chat", systemImage: "square.and.pencil") {
                         isCreating = true
@@ -131,7 +141,8 @@ struct SessionsDrawer: View {
                 Text("This removes the chat’s messages from the Gateway and this device.")
             }
         }
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.medium, .large], selection: $detent)
+        .presentationBackground(.background)
         .presentationDragIndicator(.visible)
     }
 

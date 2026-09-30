@@ -23,6 +23,10 @@ struct FancyClawApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView(model: model)
+                #if DEBUG
+                .preferredColorScheme(ProcessInfo.processInfo.arguments.contains("-PolishDark") ? .dark
+                    : ProcessInfo.processInfo.arguments.contains("-PolishLight") ? .light : nil)
+                #endif
         }
     }
 }

@@ -1,0 +1,24 @@
+{
+  "fill": {
+    "automatic-gradient": "srgb:0.26000,0.18000,0.62000,1.00000"
+  },
+  "groups": [
+    {
+      "layers": [
+        {
+          "image-name": "Claw.svg",
+          "name": "Ivory paw",
+          "glass": true
+        },
+        {
+          "image-name": "Spark.svg",
+          "name": "Peach sparkle",
+          "glass": true
+        }
+      ]
+    }
+  ],
+  "supported-platforms": {
+    "squares": "shared"
+  }
+}

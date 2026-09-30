@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <path fill="#fff5e6" d="M512 432 C453 432 437 484 405 520 C370 560 321 593 331 652 C342 719 407 737 456 717 C495 701 529 701 568 717 C617 737 682 719 693 652 C703 593 654 560 619 520 C587 484 571 432 512 432Z"/>
+  <ellipse fill="#fff5e6" cx="316" cy="415" rx="62" ry="90" transform="rotate(-28 316 415)"/>
+  <ellipse fill="#fff5e6" cx="444" cy="321" rx="63" ry="89" transform="rotate(-10 444 321)"/>
+  <ellipse fill="#fff5e6" cx="580" cy="321" rx="63" ry="89" transform="rotate(10 580 321)"/>
+  <ellipse fill="#fff5e6" cx="708" cy="415" rx="62" ry="90" transform="rotate(28 708 415)"/>
+</svg>
