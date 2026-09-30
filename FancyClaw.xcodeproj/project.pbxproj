@@ -14,6 +14,8 @@
 		FC0000000000000000000054 /* Persistence in Frameworks */ = {isa = PBXBuildFile; productRef = FC0000000000000000000074 /* Persistence */; };
 		FC0000000000000000000055 /* DesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = FC0000000000000000000075 /* DesignSystem */; };
 		FC0000000000000000000056 /* TestSupport in Frameworks */ = {isa = PBXBuildFile; productRef = FC0000000000000000000076 /* TestSupport */; };
+		FC0000000000000000000057 /* SystemIntegration in Frameworks */ = {isa = PBXBuildFile; productRef = FC0000000000000000000077 /* SystemIntegration */; };
+		FC0000000000000000000058 /* SystemActions in Frameworks */ = {isa = PBXBuildFile; productRef = FC0000000000000000000078 /* SystemActions */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -88,6 +90,7 @@
 				FC0000000000000000000054 /* Persistence in Frameworks */,
 				FC0000000000000000000055 /* DesignSystem in Frameworks */,
 				FC0000000000000000000056 /* TestSupport in Frameworks */,
+				FC0000000000000000000057 /* SystemIntegration in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -95,6 +98,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FC0000000000000000000058 /* SystemActions in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -166,6 +170,7 @@
 				FC0000000000000000000074 /* Persistence */,
 				FC0000000000000000000075 /* DesignSystem */,
 				FC0000000000000000000076 /* TestSupport */,
+				FC0000000000000000000077 /* SystemIntegration */,
 			);
 			productName = FancyClaw;
 			productReference = FC0000000000000000000020 /* FancyClaw.app */;
@@ -188,6 +193,7 @@
 			);
 			name = FancyClawWidgets;
 			packageProductDependencies = (
+				FC0000000000000000000078 /* SystemActions */,
 			);
 			productName = FancyClawWidgets;
 			productReference = FC0000000000000000000021 /* FancyClawWidgets.appex */;
@@ -653,6 +659,14 @@
 		FC0000000000000000000076 /* TestSupport */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = TestSupport;
+		};
+		FC0000000000000000000077 /* SystemIntegration */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SystemIntegration;
+		};
+		FC0000000000000000000078 /* SystemActions */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SystemActions;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

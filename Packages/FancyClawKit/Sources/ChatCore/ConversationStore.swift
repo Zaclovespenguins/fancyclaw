@@ -16,6 +16,7 @@ public final class ConversationStore {
     public private(set) var hasMoreHistory = false
     public private(set) var isLoadingHistory = false
     public private(set) var deltaCursor: String?
+    public var onRunSnapshot: ((Set<String>) -> Void)?
     private var nextOffset: Int?
     private var sessionID: String?
     private var canonicalHistory: [ChatMessage] = []
@@ -35,6 +36,7 @@ public final class ConversationStore {
     private var assistantEntryIDsByRunID: [String: String] = [:]
     private var runs: [String: RunState] = [:]
     private var outbox: [String: PendingSend] = [:]
+    private var isAsking = false
 
     private struct RunState {
         var lastSequence = -1
@@ -154,6 +156,8 @@ public final class ConversationStore {
 
     private func updateRunState(_ info: ChatSessionInfo?) {
         guard let info else { return }
+        if let ids = info.activeRunIds { onRunSnapshot?(Set(ids)) }
+        else if info.hasActiveRun == false { onRunSnapshot?([]) }
         isStreaming = info.hasActiveRun == true
         activeRunID = info.activeRunIds?.first
         if !isStreaming {
@@ -215,6 +219,59 @@ public final class ConversationStore {
     @discardableResult
     public func send(_ text: String, attachments: [PreparedAttachment] = []) async -> Bool {
         await submit(text, attachments: attachments, idempotencyKey: UUID().uuidString)
+    }
+
+    /// A foreground Shortcut sends through the same outbox and waits only for its own run.
+    /// Subscribe before sending so a final that precedes the acknowledgment stays buffered.
+    public func ask(_ text: String, timeout: Duration = .seconds(25), timing: GatewayTiming = .continuous) async throws -> String {
+        guard !invalidated else { throw ChatActionError.unavailable }
+        guard !isStreaming, !isAsking else { throw ChatActionError.busy }
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw ChatActionError.emptyMessage }
+        isAsking = true
+        defer { isAsking = false }
+        let events = await connection.events()
+        let key = UUID().uuidString
+        guard await submit(text, attachments: [], idempotencyKey: key),
+              let runID = runIDsByIdempotencyKey[key] else {
+            throw ChatActionError.failed(errorMessage ?? "Couldn’t send the message.")
+        }
+        let sessionKey = sessionKey
+        return try await withThrowingTaskGroup(of: String.self) { group in
+            group.addTask {
+                var text = ""
+                var sequence = -1
+                for await frame in events {
+                    try Task.checkCancellation()
+                    guard case .chat(let event) = frame.event, event.sessionKey == sessionKey,
+                          event.runId == runID || event.runId == key, event.seq > sequence else { continue }
+                    sequence = event.seq
+                    switch event.state {
+                    case .delta(let delta):
+                        if let message = delta.message { text = ConversationMessage.markdown(from: message) }
+                        else if delta.isReplacement { text = delta.deltaText }
+                        else { text += delta.deltaText }
+                    case .final(let final):
+                        if final.yielded == true {
+                            if let message = final.message { text = ConversationMessage.markdown(from: message) }
+                            continue
+                        }
+                        return final.message.map(ConversationMessage.markdown(from:)) ?? text
+                    case .aborted: throw ChatActionError.aborted
+                    case .error(let failure): throw ChatActionError.failed(failure.errorMessage ?? "The reply failed.")
+                    default: break
+                    }
+                }
+                throw ChatActionError.unavailable
+            }
+            group.addTask {
+                try await timing.sleep(timeout)
+                try Task.checkCancellation()
+                return "Your message was sent. Continue in FancyClaw to check the reply."
+            }
+            defer { group.cancelAll() }
+            guard let result = try await group.next() else { throw ChatActionError.unavailable }
+            return result.isEmpty ? "The reply finished. Open FancyClaw to view its content." : result
+        }
     }
 
     public func attachmentLimits() async -> HelloOK.AttachmentLimits? {

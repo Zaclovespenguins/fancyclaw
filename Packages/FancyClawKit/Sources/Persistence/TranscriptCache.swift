@@ -10,8 +10,8 @@ import SwiftData
 
     public static func makeContainer(inMemory: Bool = false) throws -> ModelContainer {
         let schema = Schema([CachedSession.self, CachedMessage.self, CachedHistory.self])
-        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: inMemory,
-            groupContainer: inMemory ? .none : .identifier(SharedContainer.appGroupIdentifier))
+        // Personal Team provisioning cannot grant App Groups. Keep the cache in the app sandbox.
+        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: inMemory, groupContainer: .none)
         return try ModelContainer(for: schema, configurations: [config])
     }
 

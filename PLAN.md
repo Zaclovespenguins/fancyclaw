@@ -1,7 +1,7 @@
 # FancyClaw — a polished, Apple-native iOS client for OpenClaw
 
 ## Context
-OpenClaw's official iOS app works but feels utilitarian. FancyClaw is a personal/TestFlight iPhone app that talks to a single OpenClaw Gateway as an **operator** (chat client, not a device node), with UI inspired by the Claude and Meta Muse iOS apps and a codebase that reads like Apple sample code: SwiftUI-first, Swift 6 strict concurrency, Observation, SwiftData, CryptoKit, Network.framework, App Intents, WidgetKit/ActivityKit, Swift Testing. There is one third-party dependency: **[Textual](https://github.com/gonzalezreal/textual)**, for Markdown rendering. SwiftUI has no native block-level Markdown renderer; `AttributedString(markdown:)` handles inline styles only.
+OpenClaw's official iOS app works but feels utilitarian. FancyClaw is a personal iPhone app that talks to a single OpenClaw Gateway as an **operator** (chat client, not a device node), with UI inspired by the Claude and Meta Muse iOS apps and a codebase that reads like Apple sample code: SwiftUI-first, Swift 6 strict concurrency, Observation, SwiftData, CryptoKit, Network.framework, App Intents, WidgetKit/ActivityKit, Swift Testing. There is one third-party dependency: **[Textual](https://github.com/gonzalezreal/textual)**, for Markdown rendering. SwiftUI has no native block-level Markdown renderer; `AttributedString(markdown:)` handles inline styles only.
 
 Working directory: `/Users/server/projects/fancyclaw`. A git repo on `main`, no remote; it holds only this plan and the XcodeBuildMCP config so far.
 
@@ -9,8 +9,8 @@ Working directory: `/Users/server/projects/fancyclaw`. A git repo on `main`, no 
 Checked on 2026-09-29.
 
 **Project settings**
-- Bundle ID: `com.zacisnotacompany.fancyclaw`. The widget extension is `com.zacisnotacompany.fancyclaw.widgets`, and the App Group is `group.com.zacisnotacompany.fancyclaw`.
-- Development team: `NWV8LZ45D5`. Unverified: the owner believes it's named "Zachary Reyes", but it couldn't be confirmed locally and no signing certificate exists yet. If Xcode shows it as a **Personal Team**, App Groups and TestFlight won't work, so flag that before Slice 10.
+- Bundle ID: `com.zacisnotacompany.fancyclaw`. The WidgetKit extension is `com.zacisnotacompany.fancyclaw.widgets`; it hosts the Control and Live Activity, with no ordinary widget or App Group entitlement.
+- Development team: `NWV8LZ45D5`. The owner confirmed a **Personal Team** before Slice 10 and chose personal use without TestFlight. SwiftData uses the app's private sandbox; device signing still needs verification on the owner's phone.
 - Simulator: **iPhone 18 Pro, iOS 27.0**, the only runtime installed. Xcode 27.2, iOS 27.2 SDK, Swift 6.4, deployment target iOS 26. Simulator builds need no signing.
 
 **Tooling**
@@ -31,7 +31,7 @@ Checked on 2026-09-29.
 | Min OS | **iOS 26**, iPhone only (Liquid Glass, `glassEffect`, native `WebView`, `@Observable`, SwiftData) |
 | Role | Operator chat client only (no node role, no camera/location commands) |
 | Network | Tailscale (Serve `wss://*.ts.net` or tailnet `ws://`), LAN via Bonjour, public HTTPS reverse proxy |
-| v1 extras | Attachments & rich output (Markdown, code, images, tool cards); App Intents/Shortcuts, widget, Control, Live Activity |
+| v1 extras | Attachments & rich output (Markdown, code, images, tool cards); App Intents/Shortcuts, Control, Live Activity; no ordinary widget |
 | Out of v1 | Voice/Talk, push notifications (APNs), multi-gateway, iPad/Mac/Watch |
 | Persistence | Gateway = source of truth; SwiftData cache for instant launch + offline read |
 | Approvals | Inline exec-approval cards (Approve / Deny) |
@@ -147,7 +147,7 @@ Key sources (raw): `docs/gateway/protocol/{transport,handshake,auth,versioning,r
 ```
 FancyClaw.xcodeproj  (Xcode 27.2, iOS 27 SDK, deployment target iOS 26, folder-synchronized groups → no pbxproj edits per file)
 ├─ FancyClaw/                App target (SwiftUI, @main, scenes, feature views)
-├─ FancyClawWidgets/         Widget extension (widget, Control, Live Activity UI)
+├─ FancyClawWidgets/         WidgetKit extension (Control and Live Activity UI only)
 ├─ Packages/FancyClawKit/    Local Swift package (all testable logic)
 │   ├─ GatewayProtocol       Codable frames + models, JSONValue, error codes (pure, no I/O)
 │   ├─ GatewayClient         actor GatewayConnection (URLSessionWebSocketTask), DeviceIdentity (CryptoKit),
@@ -156,6 +156,8 @@ FancyClaw.xcodeproj  (Xcode 27.2, iOS 27 SDK, deployment target iOS 26, folder-s
 │   ├─ ChatCore              @Observable stores: SessionStore, ConversationStore (streaming reducer),
 │   │                        ApprovalStore, AttachmentPipeline; outbox with idempotency keys
 │   ├─ Persistence           SwiftData @Model cache (CachedSession, CachedMessage), ModelContainer factory
+│   ├─ SystemActions         Shared New Chat intent/action and ActivityKit attributes; no cache or Gateway dependencies
+│   ├─ SystemIntegration     Foreground intents, cached session entities/queries, run activity reducer and driver interface
 │   ├─ DesignSystem          Colors/typography tokens, glass components, FancyClaw Textual style + code block chrome, tool card
 │   └─ TestSupport           FakeGateway (NWListener WebSocket server), fixture loader, frame recorder
 └─ FancyClawTests / FancyClawUITests   (Swift Testing + XCUITest)
@@ -245,11 +247,12 @@ Each slice ends with: build green (`build_sim`), all tests green (`test_sim`), a
 - `ApprovalStore` listens to `exec.approval.requested/resolved`; inline card in the relevant session + badge on other sessions; Approve / Deny via `exec.approval.resolve`; handle `APPROVAL_NOT_FOUND` (already resolved elsewhere) gracefully; request `operator.approvals` scope (handle `MISSING_SCOPE` with explanatory UI).
 - **Tests**: store tests (request → resolve locally → resolved event idempotent); FakeGateway round-trip; UI test taps Approve.
 
-### Slice 10 — System integration: App Intents, widget, Control, Live Activity
+### Slice 10 — System integration: App Intents, Control, Live Activity
 - App Intents: `AskFancyClawIntent` (text param → sends to default session, returns reply when app foreground / opens app), `NewChatIntent`, `OpenSessionIntent` with `SessionEntity` (`AppEntity` + `EntityQuery` from SwiftData cache); `AppShortcutsProvider` phrases for Siri/Spotlight.
-- Widget: "Recent chats" (reads shared SwiftData via App Group) + Control Center `ControlWidgetButton` "New chat".
-- Live Activity (ActivityKit) while a run is streaming: agent name, elapsed time, status; ends on final/abort. Updated locally (no push in v1).
-- **Tests**: intent `perform()` unit tests with fake stores; entity query tests; Live Activity attribute/state encoding tests; build the widget target.
+- The owner chose a private SwiftData cache and **no ordinary widget, including a launcher widget**. Control Center `ControlWidgetButton` "New chat" opens the main app to use its connection.
+- All actions open the app and require local device authentication. Ask uses the normal outbox/idempotency path and waits up to 25 seconds after send acknowledgment; a longer reply continues in the app.
+- Live Activity (ActivityKit) while a run is active: agent name, elapsed time, status; ends on final/abort/error. Updated locally (no push in v1). Background/disconnect displays "Open FancyClaw to refresh"; foreground history catch-up reconciles finished runs. Tapping opens the cached chat.
+- **Tests**: intent `perform()` unit tests with fake stores; private-cache entity queries; reply/run routing and bounded wait; Live Activity encoding and lifecycle tests; real Shortcuts discovery/execution and Dynamic Island UI checks; build the embedded WidgetKit extension.
 
 ### Slice 11 — Polish pass
 - Haptics (`sensoryFeedback`), empty states (`ContentUnavailableView`), error banners, accessibility audit (XCUITest `performAccessibilityAudit()`), Dynamic Type XXL screenshots, dark mode screenshots, app icon (Icon Composer layered icon), launch performance check.

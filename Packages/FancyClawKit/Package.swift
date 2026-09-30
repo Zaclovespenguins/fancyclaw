@@ -12,6 +12,8 @@ let package = Package(
         .library(name: "Persistence", targets: ["Persistence"]),
         .library(name: "DesignSystem", targets: ["DesignSystem"]),
         .library(name: "TestSupport", targets: ["TestSupport"]),
+        .library(name: "SystemIntegration", targets: ["SystemIntegration"]),
+        .library(name: "SystemActions", targets: ["SystemActions"]),
     ],
     dependencies: [
         // Pre-1.0: minor releases may break, so stay on 0.5.x.
@@ -29,6 +31,8 @@ let package = Package(
 
         // SwiftData cache.
         .target(name: "Persistence", dependencies: ["GatewayProtocol"]),
+        .target(name: "SystemIntegration", dependencies: ["SystemActions", "GatewayProtocol", "GatewayClient", "ChatCore", "Persistence"]),
+        .target(name: "SystemActions"),
 
         // Tokens, glass components, Markdown styling.
         .target(
@@ -49,6 +53,7 @@ let package = Package(
         .testTarget(name: "PersistenceTests", dependencies: ["Persistence", "TestSupport"]),
         .testTarget(name: "DesignSystemTests", dependencies: ["DesignSystem"]),
         .testTarget(name: "TestSupportTests", dependencies: ["TestSupport"]),
+        .testTarget(name: "SystemIntegrationTests", dependencies: ["SystemIntegration", "SystemActions", "TestSupport"]),
     ],
     swiftLanguageModes: [.v6]
 )

@@ -5,6 +5,8 @@ import GatewayProtocol
 import Observation
 import Persistence
 import SwiftData
+import SystemIntegration
+import SystemActions
 #if DEBUG
 import TestSupport
 #endif
@@ -16,6 +18,9 @@ final class AppModel {
     private(set) var approvals: ApprovalStore?
     private var cache: TranscriptCache?
     private var cacheContainer: ModelContainer?
+    private let activityDriver = ActivityKitDriver()
+    private var runActivities: RunActivityStore?
+    private var preparationTask: Task<Void, Never>?
     private var conversations: [String: ConversationStore] = [:]
     private(set) var status: ConnectionStatus = .offline
     private(set) var initialProfile: GatewayProfile?
@@ -34,16 +39,24 @@ final class AppModel {
     #endif
 
     func prepare() async {
+        if let preparationTask { await preparationTask.value; return }
+        let task = Task { await prepareOnce() }
+        preparationTask = task
+        await task.value
+    }
+
+    private func prepareOnce() async {
         guard !prepared else { return }
         prepared = true
         defer { isPreparing = false }
+        await activityDriver.endOrphanedActivities()
         do {
             #if DEBUG
             if ProcessInfo.processInfo.arguments.contains("-OnboardingPreview") {
                 isTestMode = true
                 return
             }
-            if ProcessInfo.processInfo.arguments.contains("-FakeGateway") || ProcessInfo.processInfo.arguments.contains("-DemoConversation") || ProcessInfo.processInfo.arguments.contains("-DemoAttachments") || ProcessInfo.processInfo.arguments.contains("-DemoApprovals") {
+            if ProcessInfo.processInfo.arguments.contains("-FakeGateway") || ProcessInfo.processInfo.arguments.contains("-DemoConversation") || ProcessInfo.processInfo.arguments.contains("-DemoAttachments") || ProcessInfo.processInfo.arguments.contains("-DemoApprovals") || ProcessInfo.processInfo.arguments.contains("-DemoSystemIntegration") {
                 isTestMode = true
                 let hello = try Fixtures.decode(ResponseFrame<HelloOK>.self, from: "hello-ok.res").payload
                 guard let hello else { throw ConnectionError.missingPayload }
@@ -52,11 +65,13 @@ final class AppModel {
                 fake.enableSessions()
                 self.fake = fake
                 initialProfile = GatewayProfile(url: try await fake.start(), token: "test-token")
-                if (ProcessInfo.processInfo.arguments.contains("-DemoConversation") || ProcessInfo.processInfo.arguments.contains("-DemoAttachments") || ProcessInfo.processInfo.arguments.contains("-DemoApprovals")), let initialProfile {
+                if (ProcessInfo.processInfo.arguments.contains("-DemoConversation") || ProcessInfo.processInfo.arguments.contains("-DemoAttachments") || ProcessInfo.processInfo.arguments.contains("-DemoApprovals") || ProcessInfo.processInfo.arguments.contains("-DemoSystemIntegration")), let initialProfile {
                     let connection = GatewayConnection(identity: .generate())
                     let hello = try await connection.connect(to: initialProfile.url, token: initialProfile.token)
                     await activate(profile: initialProfile, connection: connection, hello: hello)
-                    if ProcessInfo.processInfo.arguments.contains("-DemoApprovals") {
+                    if ProcessInfo.processInfo.arguments.contains("-DemoSystemIntegration") {
+                        await seedSystemDemo()
+                    } else if ProcessInfo.processInfo.arguments.contains("-DemoApprovals") {
                         await seedApprovalDemo()
                     } else if ProcessInfo.processInfo.arguments.contains("-DemoAttachments") {
                         let pipeline = AttachmentPipeline()
@@ -93,6 +108,18 @@ final class AppModel {
     }
 
     #if DEBUG
+    private func seedSystemDemo() async {
+        guard let fake else { return }
+        fake.seedHistory([ChatMessage(role: .user, content: [.text("Show a Live Activity for this reply.")],
+            metadata: .init(id: "demo-system-user"))], sessionKey: SessionKey.main.rawValue, activeRunID: "demo-system-run")
+        await resync()
+        fake.emit(.init(event: .agent(.init(runId: "demo-system-run", seq: 1, stream: "lifecycle",
+            sessionKey: SessionKey.main.rawValue, agentId: "main", data: ["phase": "start",
+                "startedAt": .integer(Int(Date.now.timeIntervalSince1970 * 1_000))]))))
+        fake.emit(.init(event: .chat(.init(runId: "demo-system-run", sessionKey: SessionKey.main.rawValue,
+            seq: 1, state: .delta(.init(deltaText: "This demo run keeps a Live Activity visible. Stop the reply to end it."))))))
+    }
+
     private func seedApprovalDemo() async {
         guard let fake, let sessions else { return }
         await sessions.refresh()
@@ -120,7 +147,12 @@ final class AppModel {
     #endif
 
     func activate(profile: GatewayProfile, connection: GatewayConnection, hello: HelloOK) async {
-        if self.connection !== connection { configure(profile: profile, connection: connection) }
+        if self.connection !== connection {
+            await runActivities?.stop()
+            configure(profile: profile, connection: connection)
+        }
+        status = .connected
+        await runActivities?.start()
         approvals?.updateScopes(hello.auth.scopes)
         await approvals?.start()
         await conversation?.start()
@@ -138,6 +170,7 @@ final class AppModel {
                 self?.status = status
                 if status != .connected {
                     for store in self?.conversations.values ?? [:].values { store.connectionDidDisconnect() }
+                    await self?.runActivities?.connectionDidDisconnect()
                 }
             }
         }
@@ -167,7 +200,11 @@ final class AppModel {
             await self?.invalidateSession(key)
         }
         self.sessions = sessions
+        runActivities = RunActivityStore(connection: connection, driver: activityDriver, agentName: { [weak self] id in
+            self?.sessions?.agents.first(where: { $0.id == id })?.name ?? id.capitalized
+        })
         let conversation = ConversationStore(connection: connection, cache: cache, gatewayURL: profile.url)
+        trackHistoryRuns(in: conversation)
         conversations[conversation.sessionKey] = conversation
         self.conversation = conversation
     }
@@ -176,23 +213,88 @@ final class AppModel {
         if let connection { approvals?.updateScopes(await connection.grantedScopes) }
         approvals?.refreshExpiry()
         await sessions?.refresh()
-        for store in conversations.values { await store.refreshHistory() }
+        let keys = Set(conversations.keys).union(runActivities?.sessionKeys ?? [])
+        for key in keys {
+            guard let store = conversationStore(for: key) else { continue }
+            await store.start()
+            await store.refreshHistory()
+        }
     }
 
     func selectSession(_ key: String) async {
-        guard let connection else { return }
-        let store = conversations[key] ?? ConversationStore(connection: connection, sessionKey: key, cache: cache, gatewayURL: initialProfile?.url)
-        conversations[key] = store
+        guard let store = conversationStore(for: key) else { return }
         conversation = store
         await store.start()
         await store.refreshHistory()
+    }
+
+    private func conversationStore(for key: String) -> ConversationStore? {
+        guard let connection else { return nil }
+        let store = conversations[key] ?? ConversationStore(connection: connection, sessionKey: key, cache: cache, gatewayURL: initialProfile?.url)
+        conversations[key] = store
+        trackHistoryRuns(in: store)
+        return store
     }
 
     func newChat() async {
         if let key = await sessions?.create() { await selectSession(key) }
     }
 
+    private func trackHistoryRuns(in store: ConversationStore) {
+        let key = store.sessionKey
+        store.onRunSnapshot = { [weak runActivities] ids in
+            runActivities?.applySnapshot(sessionKey: key, activeRunIDs: ids)
+        }
+    }
+
+    func cachedIntentSessions() throws -> [SessionEntity] {
+        let profile = isTestMode ? initialProfile : try GatewayProfileStore().load()
+        guard let profile else { return [] }
+        if cacheContainer == nil { cacheContainer = try TranscriptCache.makeContainer(inMemory: isTestMode) }
+        guard let cacheContainer else { return [] }
+        return try SessionEntity.cached(in: TranscriptCache(container: cacheContainer, gateway: profile.url.absoluteString))
+    }
+
+    private func requireIntentConnection() async throws {
+        await prepare()
+        guard status == .connected, connection != nil else { throw IntentError.notConnected }
+    }
+
+    func askFromIntent(_ text: String) async throws -> String {
+        try await requireIntentConnection()
+        await selectSession(SessionKey.main.rawValue)
+        guard let conversation else { throw IntentError.notConnected }
+        return try await conversation.ask(text)
+    }
+
+    func newChatFromIntent() async throws {
+        try await requireIntentConnection()
+        guard let sessions, let key = await sessions.create() else {
+            throw IntentError.failed(sessions?.errorMessage ?? "Couldn’t create a chat.")
+        }
+        await selectSession(key)
+    }
+
+    func openSessionFromIntent(_ entity: SessionEntity) async throws {
+        await prepare()
+        guard connection != nil else { throw IntentError.notConnected }
+        guard try cachedIntentSessions().contains(where: { $0.id == entity.id }) else { throw IntentError.sessionUnavailable }
+        await selectSession(entity.sessionKey)
+    }
+
+    func openActivityURL(_ url: URL) async {
+        guard let key = RunActivityAttributes.sessionKey(from: url) else { return }
+        await prepare()
+        do {
+            guard let entity = try cachedIntentSessions().first(where: { $0.sessionKey == key }) else {
+                throw IntentError.sessionUnavailable
+            }
+            try await openSessionFromIntent(entity)
+        } catch { errorMessage = error.localizedDescription }
+    }
+
     private func invalidateSession(_ key: String) async {
+        await runActivities?.reconcile(sessionKey: key, activeRunIDs: [])
         conversations.removeValue(forKey: key)?.invalidate()
         guard conversation?.sessionKey == key else { return }
         let next = sessions?.sessions.contains(where: { $0.key == key }) == true ? key : SessionKey.main.rawValue
@@ -225,6 +327,7 @@ final class AppModel {
 
     func setForeground(_ value: Bool) async {
         isForeground = value
+        if !value { await runActivities?.connectionDidDisconnect() }
         await lifecycle?.setForeground(value)
         if value && lifecycle == nil && conversation != nil { await reconnect() }
     }
@@ -232,6 +335,8 @@ final class AppModel {
     func disconnect() async {
         statusTask?.cancel()
         pathTask?.cancel()
+        await runActivities?.stop()
+        runActivities = nil
         await lifecycle?.stop()
         await connection?.disconnect()
         for store in conversations.values { store.stopListening() }

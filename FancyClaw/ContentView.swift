@@ -4,7 +4,7 @@ import GatewayClient
 import GatewayProtocol
 
 struct ContentView: View {
-    @State private var model = AppModel()
+    let model: AppModel
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -23,6 +23,7 @@ struct ContentView: View {
             }
         }
         .task { await model.prepare() }
+        .onOpenURL { url in Task { await model.openActivityURL(url) } }
         .onChange(of: scenePhase) { _, phase in
             Task { await model.setForeground(phase != .background) }
         }
@@ -43,4 +44,4 @@ struct ContentView: View {
     }
 }
 
-#Preview { ContentView() }
+#Preview { ContentView(model: AppModel()) }

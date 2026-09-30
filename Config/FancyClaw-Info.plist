@@ -21,5 +21,18 @@
 			</dict>
 		</dict>
 	</dict>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.zacisnotacompany.fancyclaw</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>fancyclaw</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
