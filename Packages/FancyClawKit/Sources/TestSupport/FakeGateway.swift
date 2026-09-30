@@ -1,0 +1,157 @@
+import CryptoKit
+import Foundation
+import GatewayProtocol
+import GatewayClient
+import Network
+
+/// A loopback WebSocket Gateway for deterministic integration tests.
+public final class FakeGateway: @unchecked Sendable {
+    public enum Reply: Sendable {
+        case hello(HelloOK)
+        case failure(GatewayErrorShape)
+    }
+
+    public enum FakeError: Error, Sendable {
+        case invalidConnect
+        case invalidSignature
+        case invalidIdentity
+        case oversizedFrame
+        case noPort
+    }
+
+    private let queue = DispatchQueue(label: "FancyClaw.FakeGateway")
+    private let lock = NSLock()
+    private var listener: NWListener?
+    private var connections: [NWConnection] = []
+    private var replies: [Reply]
+    private var requests: [ConnectParams] = []
+    private var failures: [Error] = []
+    private var rpcReplies: [String: JSONValue] = [:]
+    public let challenge: ConnectChallenge
+
+    public init(replies: [Reply], challenge: ConnectChallenge = .init(nonce: "fake-nonce", ts: 1_737_264_000_000)) {
+        self.replies = replies
+        self.challenge = challenge
+    }
+
+    public var receivedConnects: [ConnectParams] { lock.withLock { requests } }
+    public var recordedFailures: [Error] { lock.withLock { failures } }
+
+    public func reply(to method: String, with payload: JSONValue) {
+        lock.withLock { rpcReplies[method] = payload }
+    }
+
+    public func start() async throws -> URL {
+        let options = NWProtocolWebSocket.Options()
+        options.autoReplyPing = true
+        let parameters = NWParameters.tcp
+        parameters.defaultProtocolStack.applicationProtocols.insert(options, at: 0)
+        let listener = try NWListener(using: parameters, on: .any)
+        self.listener = listener
+        listener.newConnectionHandler = { [weak self] connection in self?.accept(connection) }
+        return try await withCheckedThrowingContinuation { continuation in
+            listener.stateUpdateHandler = { state in
+                switch state {
+                case .ready:
+                    guard let port = listener.port else { continuation.resume(throwing: FakeError.noPort); return }
+                    continuation.resume(returning: URL(string: "ws://127.0.0.1:\(port.rawValue)/")!)
+                case .failed(let error): continuation.resume(throwing: error)
+                default: break
+                }
+            }
+            listener.start(queue: queue)
+        }
+    }
+
+    public func stop() {
+        listener?.cancel()
+        lock.withLock {
+            for connection in connections { connection.cancel() }
+            connections.removeAll()
+        }
+    }
+
+    private func accept(_ connection: NWConnection) {
+        lock.withLock { connections.append(connection) }
+        connection.stateUpdateHandler = { [weak self] state in
+            if case .ready = state {
+                self?.send(EventFrame(event: GatewayEvent.Name.connectChallenge,
+                                      payload: self?.challenge), on: connection)
+                self?.receiveConnect(on: connection)
+            }
+        }
+        connection.start(queue: queue)
+    }
+
+    private func receiveConnect(on connection: NWConnection) {
+        connection.receiveMessage { [weak self] data, _, _, error in
+            guard let self else { return }
+            if let error { self.lock.withLock { self.failures.append(error) }; return }
+            guard let data else { return }
+            do {
+                guard data.count <= 64 * 1024 else { throw FakeError.oversizedFrame }
+                let request = try GatewayCoding.decoder().decode(RequestFrame<ConnectParams>.self, from: data)
+                guard request.method == "connect", let params = request.params,
+                      params.client.id == .iOSApp, params.client.mode == .ui,
+                      params.role == .operator else { throw FakeError.invalidConnect }
+                try verify(params)
+                let reply = lock.withLock { () -> Reply? in
+                    requests.append(params)
+                    return replies.isEmpty ? nil : replies.removeFirst()
+                }
+                guard let reply else { throw FakeError.invalidConnect }
+                switch reply {
+                case .hello(let hello): send(ResponseFrame(id: request.id, ok: true, payload: hello), on: connection)
+                case .failure(let failure):
+                    send(ResponseFrame<HelloOK>(id: request.id, ok: false, error: failure), on: connection)
+                }
+                receiveRequest(on: connection)
+            } catch {
+                lock.withLock { failures.append(error) }
+                connection.cancel()
+            }
+        }
+    }
+
+    private func receiveRequest(on connection: NWConnection) {
+        connection.receiveMessage { [weak self] data, _, _, error in
+            guard let self else { return }
+            if let error { self.lock.withLock { self.failures.append(error) }; return }
+            guard let data else { return }
+            do {
+                let request = try GatewayCoding.decoder().decode(RequestFrame<JSONValue>.self, from: data)
+                if let payload = lock.withLock({ rpcReplies[request.method] }) {
+                    send(ResponseFrame(id: request.id, ok: true, payload: payload), on: connection)
+                }
+                receiveRequest(on: connection)
+            } catch { lock.withLock { failures.append(error) } }
+        }
+    }
+
+    private func verify(_ params: ConnectParams) throws {
+        guard let proof = params.device,
+              proof.nonce == challenge.nonce, proof.signedAt == challenge.ts,
+              let publicBytes = Base64URL.decode(proof.publicKey),
+              let signature = Base64URL.decode(proof.signature) else { throw FakeError.invalidIdentity }
+        let expectedID = SHA256.hash(data: publicBytes).map { String(format: "%02x", $0) }.joined()
+        guard proof.id == expectedID else { throw FakeError.invalidIdentity }
+        let token = params.auth?.token ?? params.auth?.bootstrapToken ?? ""
+        let payload = ["v3", proof.id, params.client.id.rawValue, params.client.mode.rawValue,
+                       params.role?.rawValue ?? "", params.scopes?.map(\.rawValue).joined(separator: ",") ?? "",
+                       String(proof.signedAt), token, proof.nonce,
+                       params.client.platform.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+                       (params.client.deviceFamily ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()]
+            .joined(separator: "|")
+        let publicKey = try Curve25519.Signing.PublicKey(rawRepresentation: publicBytes)
+        guard publicKey.isValidSignature(signature, for: Data(payload.utf8)) else { throw FakeError.invalidSignature }
+    }
+
+    private func send<T: Encodable>(_ frame: T, on connection: NWConnection) {
+        do {
+            let data = try GatewayCoding.encoder().encode(frame)
+            let metadata = NWProtocolWebSocket.Metadata(opcode: .text)
+            let context = NWConnection.ContentContext(identifier: "frame", metadata: [metadata])
+            connection.send(content: data, contentContext: context, isComplete: true, completion: .contentProcessed { _ in })
+        } catch { lock.withLock { failures.append(error) } }
+    }
+}

@@ -26,3 +26,10 @@ Where the implementation departs from `PLAN.md`, or settles something the plan l
 - **`test_sim` summary undercounts.** It reported `passed: 0` and only listed the UI test, even though all 8 Swift Testing tests passed. Check the `✔ Test run with …` lines in the build log.
 - **A full `test_sim` takes about 4.5 minutes,** mostly UI-test runner startup.
 - **Disk space ran out during this slice** (`ENOSPC`, even for small shell writes). The owner freed some, but only about 2.1 GB is left after Slice 0, and each build/test cycle adds DerivedData, test products, and result bundles under `~/Library/Developer/XcodeBuildMCP/workspaces/`.
+
+## Slice 2: Device identity, signing, and handshake (2026-09-29)
+
+### Choices the plan left open
+- **The connection accepts an injected `DeviceIdentity`; `DeviceIdentityStore` owns Keychain persistence.** This keeps deterministic test keys out of Keychain while the app can call `loadOrCreate()` once at startup. Slice 3 should use the store when it wires onboarding to the connection.
+- **Startup `UNAVAILABLE` retries are bounded at three connection attempts**, honoring `retryAfterMs` up to five seconds. General reconnect and network recovery remain Slice 4 work.
+- **FakeGateway verifies Ed25519 signatures and returns scripted handshake and RPC responses over a loopback WebSocket.** Tests use this server and never connect to the owner's running Gateway.
