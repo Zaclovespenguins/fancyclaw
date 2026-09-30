@@ -54,7 +54,9 @@ struct ChatView: View {
                     .accessibilityIdentifier("chat.emptyState")
                 } else {
                     ForEach(store.messages) { message in
-                        ChatMessageRow(message: message)
+                        ChatMessageRow(message: message, gatewayBaseURL: store.gatewayBaseURL, loadImage: { [store] media in
+                            try await store.imageData(media)
+                        })
                             .id(message.id)
                     }
 

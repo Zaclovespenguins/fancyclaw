@@ -56,6 +56,14 @@ public final class FakeGateway: @unchecked Sendable {
 
     public var receivedRequests: [RequestFrame<JSONValue>] { lock.withLock { rpcRequests } }
 
+    public func seedHistory(_ messages: [ChatMessage], sessionKey: String, activeRunID: String? = nil) {
+        lock.withLock {
+            histories[sessionKey] = messages
+            if let activeRunID { activeRuns[activeRunID] = sessionKey }
+            cursorVersion += 1
+        }
+    }
+
     public func streamChatReply(_ text: String) { lock.withLock { chatReply = text } }
 
     public func emit(_ frame: GatewayEventFrame) {

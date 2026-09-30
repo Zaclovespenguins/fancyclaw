@@ -84,7 +84,7 @@ struct HistoryTests {
     @Test func legacyIdentitiesRemainStable() {
         let legacy = ChatMessage(role: .user, content: [.text("old")], timestamp: 123)
         #expect(legacy.historyIdentity == legacy.historyIdentity)
-        let store = ConversationStore(connection: GatewayConnection(identity: .generate()))
+        let store = ConversationStore(connection: GatewayConnection(identity: .generate()), streamingInterval: .zero)
         store.reconcileHistory([legacy])
         let first = store.messages.first?.id
         store.reconcileHistory([message("older"), legacy])

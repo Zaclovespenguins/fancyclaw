@@ -16,6 +16,7 @@ public struct GatewayEventFrame: Hashable, Sendable {
 public enum GatewayEvent: Hashable, Sendable {
     case connectChallenge(ConnectChallenge)
     case chat(ChatEvent)
+    case agent(AgentEvent)
     case sessionsChanged(SessionsChanged)
     case tick(Tick)
     case shutdown(Shutdown)
@@ -27,6 +28,7 @@ public enum GatewayEvent: Hashable, Sendable {
         switch self {
         case .connectChallenge: Name.connectChallenge
         case .chat: Name.chat
+        case .agent: "agent"
         case .sessionsChanged: "sessions.changed"
         case .tick: Name.tick
         case .shutdown: Name.shutdown
@@ -83,6 +85,7 @@ extension GatewayEventFrame: Codable {
         switch try container.decode(String.self, forKey: .event) {
         case GatewayEvent.Name.connectChallenge: event = .connectChallenge(try payload(ConnectChallenge.self))
         case GatewayEvent.Name.chat: event = .chat(try payload(ChatEvent.self))
+        case "agent": event = .agent(try payload(AgentEvent.self))
         case "sessions.changed": event = .sessionsChanged(try payload(SessionsChanged.self))
         case GatewayEvent.Name.tick: event = .tick(try payload(GatewayEvent.Tick.self))
         case GatewayEvent.Name.shutdown: event = .shutdown(try payload(GatewayEvent.Shutdown.self))
@@ -99,6 +102,7 @@ extension GatewayEventFrame: Codable {
         switch event {
         case .connectChallenge(let payload): try container.encode(payload, forKey: .payload)
         case .chat(let payload): try container.encode(payload, forKey: .payload)
+        case .agent(let payload): try container.encode(payload, forKey: .payload)
         case .sessionsChanged(let payload): try container.encode(payload, forKey: .payload)
         case .tick(let payload): try container.encode(payload, forKey: .payload)
         case .shutdown(let payload): try container.encode(payload, forKey: .payload)

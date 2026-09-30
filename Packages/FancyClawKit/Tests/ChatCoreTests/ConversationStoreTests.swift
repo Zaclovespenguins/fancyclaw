@@ -8,7 +8,7 @@ import Testing
 @Suite("Conversation reducer", .serialized)
 struct ConversationStoreTests {
     @Test @MainActor func fixtureDeltasAppendAndReplaceSnapshots() throws {
-        let store = ConversationStore(connection: GatewayConnection(identity: .generate()))
+        let store = ConversationStore(connection: GatewayConnection(identity: .generate()), streamingInterval: .zero)
         store.receive(try Fixtures.decode(GatewayEventFrame.self, from: "chat-delta.event"))
         #expect(store.messages.count == 1)
         #expect(store.messages[0].text == "You're using ")
@@ -20,7 +20,7 @@ struct ConversationStoreTests {
     }
 
     @Test @MainActor func duplicateAndOutOfOrderEventsAreIgnored() throws {
-        let store = ConversationStore(connection: GatewayConnection(identity: .generate()))
+        let store = ConversationStore(connection: GatewayConnection(identity: .generate()), streamingInterval: .zero)
         let delta = try Fixtures.decode(GatewayEventFrame.self, from: "chat-delta.event")
         store.receive(delta)
         store.receive(delta)
@@ -34,7 +34,7 @@ struct ConversationStoreTests {
     }
 
     @Test @MainActor func replacementWithoutSnapshotReplacesBuffer() {
-        let store = ConversationStore(connection: GatewayConnection(identity: .generate()))
+        let store = ConversationStore(connection: GatewayConnection(identity: .generate()), streamingInterval: .zero)
         store.receive(GatewayEventFrame(event: .chat(ChatEvent(
             runId: "run", sessionKey: store.sessionKey, seq: 1,
             state: .delta(.init(deltaText: "partial"))))))
@@ -45,7 +45,7 @@ struct ConversationStoreTests {
     }
 
     @Test @MainActor func finalWithoutDeltasCreatesCompletedAssistantMessage() {
-        let store = ConversationStore(connection: GatewayConnection(identity: .generate()))
+        let store = ConversationStore(connection: GatewayConnection(identity: .generate()), streamingInterval: .zero)
         store.receive(GatewayEventFrame(event: .chat(ChatEvent(
             runId: "run", sessionKey: store.sessionKey, seq: 1,
             state: .final(.init(message: ChatMessage(role: .assistant, content: [.text("complete")])))))))
@@ -54,7 +54,7 @@ struct ConversationStoreTests {
     }
 
     @Test @MainActor func abortedAndErrorEventsSettleTheRun() {
-        let store = ConversationStore(connection: GatewayConnection(identity: .generate()))
+        let store = ConversationStore(connection: GatewayConnection(identity: .generate()), streamingInterval: .zero)
         store.receive(GatewayEventFrame(event: .chat(ChatEvent(
             runId: "aborted", sessionKey: store.sessionKey, seq: 1,
             state: .delta(.init(deltaText: "partial"))))))
@@ -72,7 +72,7 @@ struct ConversationStoreTests {
     }
 
     @Test @MainActor func ignoresOtherSessionsAndAgentEvents() throws {
-        let store = ConversationStore(connection: GatewayConnection(identity: .generate()))
+        let store = ConversationStore(connection: GatewayConnection(identity: .generate()), streamingInterval: .zero)
         let wrongSession = GatewayEventFrame(event: .chat(ChatEvent(
             runId: "run", sessionKey: "agent:other:main", seq: 1,
             state: .delta(.init(deltaText: "wrong")))))
@@ -82,7 +82,7 @@ struct ConversationStoreTests {
     }
 
     @Test @MainActor func terminalEventBeforeAcknowledgementClearsAdoptedRun() {
-        let store = ConversationStore(connection: GatewayConnection(identity: .generate()))
+        let store = ConversationStore(connection: GatewayConnection(identity: .generate()), streamingInterval: .zero)
         let localID = "local-key"
         store.receive(GatewayEventFrame(event: .chat(ChatEvent(
             runId: localID, sessionKey: store.sessionKey, seq: 1,
@@ -98,7 +98,7 @@ struct ConversationStoreTests {
     }
 
     @Test @MainActor func historyStableAssistantIDRemainsCanonicalDuringStreaming() {
-        let store = ConversationStore(connection: GatewayConnection(identity: .generate()))
+        let store = ConversationStore(connection: GatewayConnection(identity: .generate()), streamingInterval: .zero)
         store.receive(GatewayEventFrame(event: .chat(ChatEvent(
             runId: "runA", sessionKey: store.sessionKey, seq: 1,
             state: .delta(.init(deltaText: "partial"))))))

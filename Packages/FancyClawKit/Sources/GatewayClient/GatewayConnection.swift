@@ -14,6 +14,8 @@ public enum ConnectionError: Error, Sendable {
 
 public actor GatewayConnection {
     private static let logger = Logger(subsystem: "com.zacisnotacompany.fancyclaw", category: "GatewayConnection")
+    private let imageSession: URLSession
+    private let externalImageSession: URLSession
     private let session: URLSession
     private let identity: DeviceIdentity
     private let identityStore: DeviceIdentityStore?
@@ -24,6 +26,8 @@ public actor GatewayConnection {
     private var generation = UUID()
     private var ready = false
     private var failures: [UUID: AsyncStream<Void>.Continuation] = [:]
+    private var mediaOrigin: URL?
+    private var mediaBearer: String?
     private var maxPayload = 25 * 1024 * 1024
 
     public init(identity: DeviceIdentity, identityStore: DeviceIdentityStore? = nil,
@@ -31,6 +35,31 @@ public actor GatewayConnection {
         self.identity = identity
         self.identityStore = identityStore
         self.session = session
+        let imageConfiguration = URLSessionConfiguration.ephemeral
+        imageConfiguration.urlCache = nil
+        imageConfiguration.httpCookieStorage = nil
+        imageConfiguration.protocolClasses = session.configuration.protocolClasses
+        imageSession = URLSession(configuration: imageConfiguration, delegate: session.delegate, delegateQueue: nil)
+        externalImageSession = URLSession(configuration: imageConfiguration)
+    }
+
+    func fetchImage(_ reference: String) async throws -> Data {
+        guard let origin = mediaOrigin else { throw ConnectionError.disconnected }
+        let url = try ArtifactURLResolver.resolve(reference, gateway: origin)
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 30)
+        let isGatewayOrigin = ArtifactURLResolver.isSameOrigin(url, gateway: origin)
+        if isGatewayOrigin, let mediaBearer {
+            request.setValue("Bearer \(mediaBearer)", forHTTPHeaderField: "Authorization")
+        }
+        request.setValue("image/*", forHTTPHeaderField: "Accept")
+        let mediaGeneration = generation
+        let mediaSession = isGatewayOrigin ? imageSession : externalImageSession
+        let (bytes, response) = try await mediaSession.data(for: request, delegate: MediaRedirectDelegate())
+        guard mediaGeneration == generation else { throw CancellationError() }
+        guard let response = response as? HTTPURLResponse, (200..<300).contains(response.statusCode),
+              response.mimeType?.hasPrefix("image/") == true else { throw URLError(.badServerResponse) }
+        guard bytes.count <= 25 * 1024 * 1024 else { throw ConnectionError.frameTooLarge }
+        return bytes
     }
 
     public func disconnections() -> AsyncStream<Void> {
@@ -100,6 +129,8 @@ public actor GatewayConnection {
                 guard hello.protocol == ProtocolVersion.current else { throw ConnectionError.protocolMismatch(hello.protocol) }
                 guard attemptGeneration == generation else { throw CancellationError() }
                 ready = true
+                mediaOrigin = url
+                mediaBearer = selectedToken ?? password
                 maxPayload = hello.policy.maxPayload
                 if url.scheme == "wss" || url.host == "localhost" || url.host == "127.0.0.1" || url.host == "::1" {
                     let issued = hello.auth.deviceTokens?.first { $0.role == .operator }?.deviceToken
@@ -211,6 +242,8 @@ public actor GatewayConnection {
     public func disconnect() {
         generation = UUID()
         ready = false
+        mediaOrigin = nil
+        mediaBearer = nil
         reader?.cancel()
         reader = nil
         socket?.cancel(with: .goingAway, reason: nil)

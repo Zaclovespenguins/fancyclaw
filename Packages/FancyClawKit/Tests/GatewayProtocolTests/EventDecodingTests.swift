@@ -5,6 +5,15 @@ import TestSupport
 
 @Suite("Event decoding")
 struct EventDecodingTests {
+    @Test func agentTool() throws {
+        let frame = try Fixtures.decode(GatewayEventFrame.self, from: "agent-tool.event")
+        guard case .agent(let event) = frame.event else { Issue.record("Expected agent event"); return }
+        #expect(event.stream == "tool")
+        #expect(event.data["toolCallId"]?.stringValue == "call-0001")
+        #expect(try GatewayCoding.decoder().decode(GatewayEventFrame.self,
+            from: GatewayCoding.encoder().encode(frame)) == frame)
+    }
+
     @Test func tick() throws {
         let frame = try Fixtures.decode(GatewayEventFrame.self, from: "tick.event")
         #expect(frame.event == .tick(GatewayEvent.Tick(ts: 1_737_264_000_000)))
@@ -41,7 +50,7 @@ struct EventDecodingTests {
         #expect(unrestricted.offeredDecisions == [.allowOnce, .allowAlways, .deny])
     }
 
-    @Test(arguments: ["agent-tool.event", "future.event", "no-payload.event"])
+    @Test(arguments: ["future.event", "no-payload.event"])
     func unmodeledEventsDecodeAsUnknown(fixture: String) throws {
         let frame = try Fixtures.decode(GatewayEventFrame.self, from: fixture)
         let raw = try Fixtures.frame(fixture)

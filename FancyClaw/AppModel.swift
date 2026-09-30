@@ -55,7 +55,7 @@ final class AppModel {
                     let connection = GatewayConnection(identity: .generate())
                     let hello = try await connection.connect(to: initialProfile.url, token: initialProfile.token)
                     await activate(profile: initialProfile, connection: connection, hello: hello)
-                    await conversation?.send("Hello, FancyClaw")
+                    await seedRichDemo()
                 }
                 return
             }
@@ -81,6 +81,18 @@ final class AppModel {
             errorMessage = error.localizedDescription
         }
     }
+
+    #if DEBUG
+    private func seedRichDemo() async {
+        // Seed the fake's canonical history too, so a lifecycle resync retains the showcase.
+        guard let conversation, let fake else { return }
+        let history = RichConversationDemo.history
+        fake.seedHistory(history, sessionKey: conversation.sessionKey, activeRunID: "demo-partial")
+        conversation.reconcileHistory(history)
+        conversation.receive(RichConversationDemo.partialStream(sessionKey: conversation.sessionKey))
+        for event in RichConversationDemo.toolEvents(sessionKey: conversation.sessionKey) { conversation.receive(event) }
+    }
+    #endif
 
     func activate(profile: GatewayProfile, connection: GatewayConnection, hello: HelloOK) async {
         if self.connection !== connection { configure(profile: profile, connection: connection) }
@@ -126,7 +138,7 @@ final class AppModel {
             await self?.invalidateSession(key)
         }
         self.sessions = sessions
-        let conversation = ConversationStore(connection: connection, cache: cache)
+        let conversation = ConversationStore(connection: connection, cache: cache, gatewayURL: profile.url)
         conversations[conversation.sessionKey] = conversation
         self.conversation = conversation
     }
@@ -138,7 +150,7 @@ final class AppModel {
 
     func selectSession(_ key: String) async {
         guard let connection else { return }
-        let store = conversations[key] ?? ConversationStore(connection: connection, sessionKey: key, cache: cache)
+        let store = conversations[key] ?? ConversationStore(connection: connection, sessionKey: key, cache: cache, gatewayURL: initialProfile?.url)
         conversations[key] = store
         conversation = store
         await store.start()

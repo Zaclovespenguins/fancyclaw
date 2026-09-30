@@ -8,6 +8,7 @@ import Persistence
 @MainActor @Observable
 public final class ConversationStore {
     public let sessionKey: String
+    public let gatewayBaseURL: URL?
     public private(set) var messages: [ConversationMessage] = []
     public private(set) var isStreaming = false
     public var errorMessage: String?
@@ -22,6 +23,9 @@ public final class ConversationStore {
     private var needsRefresh = false
     private var transcriptRevision = 0
 
+    private let throttle: StreamingThrottle
+    private var pendingAssistantMessages: [String: ConversationMessage] = [:]
+    private var lastToolSequence: [String: Int] = [:]
     private let connection: GatewayConnection
     private var eventTask: Task<Void, Never>?
     private var activeRunID: String?
@@ -40,8 +44,11 @@ public final class ConversationStore {
         let messageID: String
     }
 
-    public init(connection: GatewayConnection, sessionKey: String = SessionKey.main.rawValue, cache: TranscriptCache? = nil) {
+    public init(connection: GatewayConnection, sessionKey: String = SessionKey.main.rawValue, cache: TranscriptCache? = nil,
+                gatewayURL: URL? = nil, timing: GatewayTiming = .continuous, streamingInterval: Duration = .milliseconds(33)) {
+        throttle = StreamingThrottle(timing: timing, interval: streamingInterval)
         self.connection = connection
+        gatewayBaseURL = gatewayURL.flatMap { try? ArtifactURLResolver.baseURL(for: $0) }
         self.sessionKey = sessionKey
         self.cache = cache
         do {
@@ -123,6 +130,9 @@ public final class ConversationStore {
 
     private func applyPage(_ page: ChatHistoryPage) {
         if let old = sessionID, let new = page.sessionId, old != new {
+            throttle.cancel()
+            pendingAssistantMessages.removeAll()
+            lastToolSequence.removeAll()
             messages = []
             outbox.removeAll()
             runs.removeAll()
@@ -181,12 +191,17 @@ public final class ConversationStore {
     }
 
     public func stopListening() {
+        flushStreaming()
+        throttle.cancel()
         eventTask?.cancel()
         eventTask = nil
     }
 
     /// Marks the active run as uncertain after a transport loss while keeping its idempotent outbox entry.
     public func connectionDidDisconnect() {
+        flushStreaming()
+        throttle.cancel()
+        interruptTools()
         if isStreaming { errorMessage = "Connection lost. Your message will remain here while the Gateway reconnects." }
         isStreaming = false
         activeRunID = nil
@@ -217,6 +232,7 @@ public final class ConversationStore {
 
     /// Reconciles the visible transcript with a Gateway history snapshot while retaining unconfirmed echoes.
     public func reconcileHistory(_ history: [ChatMessage]) {
+        flushStreaming()
         canonicalHistory = Self.merging([], with: history)
         var canonical: [ConversationMessage] = []
         var confirmedKeys: Set<String> = []
@@ -225,6 +241,16 @@ public final class ConversationStore {
             switch message.role {
             case .user: role = .user
             case .assistant: role = .assistant
+            case .toolResult:
+                if let callID = message.toolCallId {
+                    for row in canonical.indices {
+                        if let index = canonical[row].tools.firstIndex(where: { $0.id == callID }) {
+                            canonical[row].tools[index].result = .string(ConversationMessage.markdown(from: message))
+                            canonical[row].tools[index].status = message.isError == true ? .error : .success
+                        }
+                    }
+                }
+                continue
             default: continue
             }
             if role == .assistant, let runID = message.metadata?.runId, let entryID = message.entryId {
@@ -235,7 +261,9 @@ public final class ConversationStore {
             let currentStreaming = messages.first(where: { $0.id == id || $0.id == assistantMessageID(for: message.metadata?.runId ?? "") })
             canonical.append(ConversationMessage(
                 id: id, role: role, text: Self.visibleText(message),
-                isStreaming: currentStreaming?.isStreaming ?? false
+                isStreaming: currentStreaming?.isStreaming ?? false,
+                images: ConversationMessage.images(from: message),
+                tools: Self.historyTools(message, current: currentStreaming?.tools ?? [])
             ))
         }
         for (key, pending) in outbox where !confirmedKeys.contains(key) {
@@ -254,7 +282,9 @@ public final class ConversationStore {
 
     /// Public for deterministic reducer tests and callers that already own an event stream.
     public func receive(_ frame: GatewayEventFrame) {
-        guard !invalidated, case .chat(let event) = frame.event,
+        guard !invalidated else { return }
+        if case .agent(let event) = frame.event { receiveTool(event); return }
+        guard case .chat(let event) = frame.event,
               event.sessionKey == sessionKey,
               !event.runId.isEmpty else { return }
 
@@ -272,18 +302,21 @@ public final class ConversationStore {
             isStreaming = true
             errorMessage = nil
             if let entryID = delta.message?.entryId { adoptAssistantEntryID(entryID, for: event.runId) }
-            let text = delta.message.map(Self.visibleText) ?? delta.deltaText
             let id = assistantMessageID(for: event.runId)
-            if let index = messages.firstIndex(where: { $0.id == id }) {
-                if delta.message != nil || delta.isReplacement {
-                    messages[index].text = text
-                } else {
-                    messages[index].text += text
-                }
-                messages[index].isStreaming = true
-            } else {
-                messages.append(ConversationMessage(id: id, role: .assistant, text: text, isStreaming: true))
+            var row = pendingAssistantMessages[event.runId]
+                ?? messages.first(where: { $0.id == id })
+                ?? ConversationMessage(id: id, role: .assistant, text: "")
+            row.id = id
+            let text = delta.message.map(Self.visibleText) ?? delta.deltaText
+            if delta.message != nil || delta.isReplacement { row.text = text }
+            else { row.text += text }
+            if let message = delta.message {
+                row.images = ConversationMessage.images(from: message)
+                row.tools = Self.historyTools(message, current: row.tools)
             }
+            row.isStreaming = true
+            pendingAssistantMessages[event.runId] = row
+            throttle.schedule { [weak self] in self?.flushStreaming() }
         case .final(let final):
             settle(event.runId, message: final.message, error: nil)
             run.isTerminal = true
@@ -339,9 +372,13 @@ public final class ConversationStore {
         let previousRunID = runIDsByIdempotencyKey[idempotencyKey] ?? idempotencyKey
         runIDsByIdempotencyKey[idempotencyKey] = response.runId
         if response.runId != previousRunID {
+            flushStreaming()
             let oldAssistantID = assistantMessageID(for: previousRunID)
             if let entryID = assistantEntryIDsByRunID.removeValue(forKey: previousRunID) {
                 assistantEntryIDsByRunID[response.runId] = entryID
+            }
+            if let sequence = lastToolSequence.removeValue(forKey: previousRunID) {
+                lastToolSequence[response.runId] = max(sequence, lastToolSequence[response.runId, default: -1])
             }
             if let state = runs.removeValue(forKey: previousRunID) {
                 runs[response.runId] = merge(state, with: runs[response.runId])
@@ -358,6 +395,8 @@ public final class ConversationStore {
     }
 
     private func settle(_ runID: String, message: ChatMessage?, error: String?) {
+        flushStreaming()
+        interruptTools(runID: runID)
         if let entryID = message?.entryId, message?.role == .assistant {
             adoptAssistantEntryID(entryID, for: runID)
         }
@@ -366,10 +405,13 @@ public final class ConversationStore {
             let text = Self.visibleText(message)
             if let index = messages.firstIndex(where: { $0.id == id || $0.id == assistantMessageID(for: runID) }) {
                 messages[index].text = text
+                messages[index].images = ConversationMessage.images(from: message)
+                messages[index].tools = Self.historyTools(message, current: messages[index].tools)
                 messages[index].isStreaming = false
                 if messages[index].id != id { messages[index].id = id }
             } else {
-                messages.append(ConversationMessage(id: id, role: .assistant, text: text))
+                messages.append(ConversationMessage(id: id, role: .assistant, text: text,
+                    images: ConversationMessage.images(from: message), tools: Self.historyTools(message, current: [])))
             }
         } else if let index = messages.firstIndex(where: { $0.id == assistantMessageID(for: runID) }) {
             messages[index].isStreaming = false
@@ -394,10 +436,76 @@ public final class ConversationStore {
     }
 
     private static func visibleText(_ message: ChatMessage) -> String {
-        message.content.compactMap { block in
-            if case .text(let text) = block { return text }
-            return nil
-        }.joined()
+        ConversationMessage.markdown(from: message)
+    }
+
+    public func imageData(_ media: ContentBlock.Media) async throws -> Data {
+        try await connection.imageData(sessionKey: sessionKey, media: media)
+    }
+
+    private func flushStreaming() {
+        for (runID, var row) in pendingAssistantMessages {
+            row.id = assistantMessageID(for: runID)
+            if let index = messages.firstIndex(where: { $0.id == row.id }) { messages[index] = row }
+            else { messages.append(row) }
+        }
+        pendingAssistantMessages.removeAll()
+    }
+
+    private static func historyTools(_ message: ChatMessage, current: [ConversationTool]) -> [ConversationTool] {
+        var tools = current
+        for block in message.content {
+            guard case .toolCall(let call) = block, let id = call.id else { continue }
+            if let index = tools.firstIndex(where: { $0.id == id }) {
+                tools[index].name = call.name ?? tools[index].name
+                tools[index].arguments = call.arguments ?? tools[index].arguments
+            } else {
+                tools.append(ConversationTool(id: id, name: call.name ?? "Tool", arguments: call.arguments,
+                    status: .interrupted))
+            }
+        }
+        return tools
+    }
+
+    private func receiveTool(_ event: AgentEvent) {
+        guard event.stream == "tool", !event.runId.isEmpty,
+              event.sessionKey == sessionKey || (event.sessionKey == nil && runs[event.runId] != nil),
+              let phase = event.data["phase"]?.stringValue,
+              ["start", "update", "result"].contains(phase),
+              let callID = event.data["toolCallId"]?.stringValue,
+              event.seq > lastToolSequence[event.runId, default: -1] else { return }
+        lastToolSequence[event.runId] = event.seq
+        transcriptRevision += 1
+        let id = assistantMessageID(for: event.runId)
+        var row = pendingAssistantMessages[event.runId]
+            ?? messages.first(where: { $0.id == id })
+            ?? ConversationMessage(id: id, role: .assistant, text: "")
+        let index = row.tools.firstIndex(where: { $0.id == callID })
+        var tool = index.map { row.tools[$0] }
+            ?? ConversationTool(id: callID, name: event.data["name"]?.stringValue ?? "Tool")
+        guard tool.status != .success && tool.status != .error else { return }
+        tool.name = event.data["name"]?.stringValue ?? tool.name
+        if phase == "start" { tool.arguments = event.data["args"] }
+        if phase == "update" { tool.result = event.data["partialResult"] }
+        if phase == "result" {
+            tool.result = event.data["result"] ?? event.data["toolErrorSummary"]
+            tool.status = event.data["isError"]?.boolValue == true ? .error : .success
+        } else {
+            tool.status = runs[event.runId]?.isTerminal == true ? .interrupted : .running
+        }
+        if let index { row.tools[index] = tool } else { row.tools.append(tool) }
+        // Tool status changes are infrequent and publish immediately, including buffered text.
+        pendingAssistantMessages[event.runId] = row
+        flushStreaming()
+    }
+
+    private func interruptTools(runID: String? = nil) {
+        let messageID = runID.map { assistantMessageID(for: $0) }
+        for index in messages.indices where messageID == nil || messages[index].id == messageID {
+            for tool in messages[index].tools.indices where messages[index].tools[tool].status == .running {
+                messages[index].tools[tool].status = .interrupted
+            }
+        }
     }
 
     private static func errorCopy(kind: ChatErrorKind?, message: String?) -> String {
