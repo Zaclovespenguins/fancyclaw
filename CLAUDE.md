@@ -2,6 +2,8 @@
 
 A SwiftUI iOS operator client for an OpenClaw Gateway. `PLAN.md` holds the architecture, protocol reference, and the vertical slices. Read it before starting a slice.
 
+`.claude/plan-deviations.md` logs where the implementation departs from `PLAN.md` and which open questions each slice settled. Read it too. When a slice departs from the plan, add an entry.
+
 ## Layout
 - `FancyClaw.xcodeproj`: app (`FancyClaw/`), widget extension (`FancyClawWidgets/`), UI tests (`FancyClawUITests/`). It uses folder-synchronized groups, so new files in those folders join their target automatically. Don't edit `project.pbxproj` per file.
 - `Packages/FancyClawKit`: local package holding all testable logic. Modules: `GatewayProtocol` (pure Codable), `GatewayClient`, `ChatCore`, `Persistence`, `DesignSystem` (the only module that depends on Textual), `TestSupport`. Each has a `<Module>Tests` target.
