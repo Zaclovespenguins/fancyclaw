@@ -84,6 +84,8 @@ struct FixtureCase: Sendable, CustomTestStringConvertible {
         // Sessions
         .request("sessions-list.req", SessionsListParams.self, body: "SessionsListParams"),
         .response("sessions-list.res", SessionsListResult.self),
+        .event("sessions-changed-message.event"),
+        .event("sessions-changed-lifecycle.event"),
         // Approvals
         .event("exec-approval-requested.event"),
         .event("exec-approval-resolved.event"),

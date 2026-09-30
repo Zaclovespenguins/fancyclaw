@@ -69,6 +69,11 @@ public final class FakeGateway: @unchecked Sendable {
     public func streamChatReply(_ text: String) { lock.withLock { chatReply = text } }
 
     public func emit(_ frame: GatewayEventFrame) {
+        emitWireFrame(frame)
+    }
+
+    /// Accept untyped wire fixtures too, so regressions don't depend on the client's payload models.
+    public func emitWireFrame<T: Encodable & Sendable>(_ frame: T) {
         let peers = lock.withLock { connections }
         for peer in peers { send(frame, on: peer) }
     }

@@ -1,0 +1,15 @@
+{
+  "type": "event",
+  "event": "sessions.changed",
+  "payload": {
+    "sessionKey": "agent:main:main",
+    "reason": "update",
+    "ts": 1737264003000,
+    "session": {
+      "key": "agent:main:main",
+      "sessionId": "fake-main",
+      "label": "Updated chat"
+    }
+  },
+  "seq": 105
+}

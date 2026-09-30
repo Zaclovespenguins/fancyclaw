@@ -8,6 +8,35 @@ import Testing
 
 @Suite("Session store", .serialized) @MainActor
 struct SessionStoreTests {
+    @Test func messagePhaseRefreshesOrUpsertsWithoutInvalidatingHistory() async throws {
+        let fake = try FakeGateway(replies: [.hello(#require(Fixtures.decode(ResponseFrame<HelloOK>.self, from: "hello-ok.res").payload))])
+        fake.enableSessions()
+        let url = try await fake.start()
+        defer { fake.stop() }
+        let connection = GatewayConnection(identity: .generate())
+        _ = try await connection.connect(to: url, token: "test")
+        let cache = TranscriptCache(container: try TranscriptCache.makeContainer(inMemory: true), gateway: "g")
+        let history = ChatHistoryPage(sessionKey: "agent:main:main",
+            messages: [ChatMessage(role: .assistant, content: [.text("Cached reply")])])
+        try cache.saveHistory(history)
+        let store = SessionStore(connection: connection, cache: cache)
+        let frame = try Fixtures.decode(GatewayEventFrame.self, from: "sessions-changed-message.event")
+        guard case .sessionsChanged(var change) = frame.event else {
+            Issue.record("Expected session change"); return
+        }
+        await store.receive(change)
+        #expect(store.sessions.first?.displayName == "Main chat")
+        #expect(fake.receivedRequests.last?.method == "sessions.list")
+        #expect(store.errorMessage == nil)
+        let requestCount = fake.receivedRequests.count
+        change.session = SessionSummary(key: "agent:main:main", sessionId: "fake-main", label: "Message updated")
+        await store.receive(change)
+        #expect(store.sessions.first?.label == "Message updated")
+        #expect(fake.receivedRequests.count == requestCount)
+        #expect(try cache.history("agent:main:main")?.messages == history.messages)
+        await connection.disconnect()
+    }
+
     @Test func createRenameModelResetAndArchiveDeleteRoundTrip() async throws {
         let fake = try FakeGateway(replies: [.hello(#require(Fixtures.decode(ResponseFrame<HelloOK>.self, from: "hello-ok.res").payload))])
         fake.enableSessions()

@@ -208,19 +208,54 @@ public actor GatewayConnection {
                 case .response:
                     if let id = header.id { pending.removeValue(forKey: id)?.resume(returning: data) }
                 case .event:
-                    let event = try GatewayCoding.decoder().decode(GatewayEventFrame.self, from: data)
+                    let event: GatewayEventFrame
+                    do {
+                        event = try GatewayCoding.decoder().decode(GatewayEventFrame.self, from: data)
+                    } catch let error as DecodingError {
+                        Self.logEventDecodingFailure(error, eventName: header.event ?? "<missing>")
+                        throw error
+                    }
                     for continuation in eventContinuations.values { continuation.yield(event) }
                 default: break
                 }
             }
         } catch {
-            Self.logger.info("Gateway receive loop ended: \(String(describing: error), privacy: .public)")
+            if error is DecodingError {
+                // DecodingError descriptions can include payload values; log only structural details above.
+                Self.logger.info("Gateway receive loop ended: frame decoding failed")
+            } else {
+                Self.logger.info("Gateway receive loop ended: \(String(describing: error), privacy: .public)")
+            }
             guard readerGeneration == generation else { return }
             ready = false
             socket = nil
             failPending(error)
             for continuation in failures.values { continuation.yield(()) }
         }
+    }
+
+    private static func logEventDecodingFailure(_ error: DecodingError, eventName: String) {
+        let kind: String
+        let path: [any CodingKey]
+        switch error {
+        case .keyNotFound(let key, let context):
+            kind = "keyNotFound"
+            path = context.codingPath + [key]
+        case .typeMismatch(_, let context):
+            kind = "typeMismatch"
+            path = context.codingPath
+        case .valueNotFound(_, let context):
+            kind = "valueNotFound"
+            path = context.codingPath
+        case .dataCorrupted(let context):
+            kind = "dataCorrupted"
+            path = context.codingPath
+        @unknown default:
+            kind = "unknown"
+            path = []
+        }
+        let fieldPath = path.map(\.stringValue).joined(separator: ".")
+        logger.error("Gateway event decoding failed: event=\(eventName, privacy: .public) kind=\(kind, privacy: .public) path=\(fieldPath, privacy: .public)")
     }
 
     private func receive(_ task: URLSessionWebSocketTask, timeout: Duration) async throws -> Data {

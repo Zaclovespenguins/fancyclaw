@@ -6,6 +6,48 @@ import Testing
 
 @Suite("Gateway handshake", .serialized)
 struct GatewayConnectionTests {
+    @Test(.timeLimit(.minutes(1)))
+    func messageChangeDoesNotInterruptHistoryOrLaterChatEvents() async throws {
+        let hello = try #require(Fixtures.decode(ResponseFrame<HelloOK>.self, from: "hello-ok.res").payload)
+        let fake = FakeGateway(replies: [.hello(hello)])
+        fake.enableSessions()
+        let messages = [ChatMessage(role: .assistant, content: [.text("Reply")])]
+        fake.seedHistory(messages, sessionKey: "agent:main:main")
+        let url = try await fake.start()
+        defer { fake.stop() }
+        let connection = GatewayConnection(identity: .generate())
+        _ = try await connection.connect(to: url, token: "test-token")
+        let stream = await connection.events()
+        let received = Task {
+            var events: [GatewayEventFrame] = []
+            for await event in stream {
+                events.append(event)
+                if events.count == 2 { break }
+            }
+            return events
+        }
+        defer { received.cancel() }
+
+        // Send wire JSON, not a re-encoded SessionsChanged, to reproduce the missing reason.
+        fake.emitWireFrame(try Fixtures.frame("sessions-changed-message.event"))
+        let history = try await connection.request("chat.history",
+            params: ChatHistoryParams(sessionKey: "agent:main:main"), returning: ChatHistoryPage.self,
+            timeout: .seconds(3))
+        #expect(history.messages == messages)
+        fake.emitWireFrame(try Fixtures.frame("chat-final.event"))
+        // A second RPC is a bounded barrier after the final event on the same socket.
+        let laterHistory = try await connection.request("chat.history",
+            params: ChatHistoryParams(sessionKey: "agent:main:main"), returning: ChatHistoryPage.self,
+            timeout: .seconds(3))
+        #expect(laterHistory.messages == messages)
+        let events = await received.value
+        #expect(events.map { $0.event.name } == ["sessions.changed", "chat"])
+        #expect(events.last?.seq == 103)
+        #expect(fake.receivedConnects.count == 1)
+        #expect(fake.recordedFailures.isEmpty)
+        await connection.disconnect()
+    }
+
     @Test func happyPath() async throws {
         let hello = try #require(Fixtures.decode(ResponseFrame<HelloOK>.self, from: "hello-ok.res").payload)
         let fake = FakeGateway(replies: [.hello(hello)])

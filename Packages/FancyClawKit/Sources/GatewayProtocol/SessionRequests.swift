@@ -58,14 +58,17 @@ public struct SessionsDeleteParams: Codable, Sendable {
 
 public struct SessionsChanged: Codable, Hashable, Sendable {
     public var sessionKey: String?
-    public var reason: String
+    /// Lifecycle changes carry a reason; transcript notifications may carry only a phase.
+    public var reason: String?
+    public var phase: String?
     public var ts: Double?
     public var session: SessionSummary?
     public var sessionId: String?
-    public init(sessionKey: String? = nil, reason: String, ts: Double? = nil,
-                session: SessionSummary? = nil, sessionId: String? = nil) {
+    public init(sessionKey: String? = nil, reason: String? = nil, ts: Double? = nil,
+                session: SessionSummary? = nil, sessionId: String? = nil, phase: String? = nil) {
         self.sessionKey = sessionKey
         self.reason = reason
+        self.phase = phase
         self.ts = ts
         self.session = session
         self.sessionId = sessionId
