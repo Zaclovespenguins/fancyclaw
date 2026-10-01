@@ -93,7 +93,26 @@ struct OnboardingTests {
         } catch let error as GatewayErrorShape {
             #expect(error.pairingRequestId == pairingError.pairingRequestId)
         }
-        #expect(await count.value == 1)
+        // One attempt at the start plus exactly one final attempt once the clipped sleep reaches the deadline.
+        #expect(await count.value == 2)
+    }
+
+    @Test func finalAttemptAtTheDeadlineCanStillSucceed() async throws {
+        let pairingError = try #require(Fixtures.decode(ResponseFrame<HelloOK>.self, from: "error-pairing-required.res").error)
+        let hello = try #require(Fixtures.decode(ResponseFrame<HelloOK>.self, from: "hello-ok.res").payload)
+        let clock = ElapsedBox()
+        let count = RetryCounter()
+        let coordinator = PairingCoordinator(schedule: .init(maximumDuration: .seconds(5), delays: [.seconds(3)]),
+            sleep: { clock.advance(milliseconds: Int($0 / .milliseconds(1))) },
+            elapsed: { .milliseconds(clock.value) })
+        // Attempts at 0 s and 3 s fail; the clipped 2 s sleep lands on the 5 s deadline, where approval has arrived.
+        let result = try await coordinator.connect(using: {
+            await count.increment()
+            if await count.value < 3 { throw pairingError }
+            return hello
+        })
+        #expect(result.server.connId == hello.server.connId)
+        #expect(await count.value == 3)
     }
 
     @Test func coordinatorHonorsCancellationBeforeConnecting() async throws {

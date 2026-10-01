@@ -106,6 +106,39 @@ struct ConnectionLifecycleTests {
         await lifecycle.stop()
         await connection.disconnect()
     }
+
+    // B4: an availability change that interleaves with the disconnect must not settle offline.
+    @Test(.timeLimit(.minutes(2)), arguments: [false, true])
+    func interleavedAvailabilityChangesNeverSettleOffline(viaReachability: Bool) async throws {
+        let hello = try #require(Fixtures.decode(ResponseFrame<HelloOK>.self, from: "hello-ok.res").payload)
+        let fake = FakeGateway(replies: Array(repeating: .hello(hello), count: 200))
+        let url = try await fake.start()
+        defer { fake.stop() }
+        let connection = GatewayConnection(identity: .generate())
+        _ = try await connection.connect(to: url)
+        let lifecycle = ConnectionLifecycle(connection: connection)
+        await lifecycle.start(profile: .init(url: url), hello: hello)
+        for iteration in 0..<30 {
+            await withTaskGroup(of: Void.self) { group in
+                group.addTask { viaReachability ? await lifecycle.setReachable(false) : await lifecycle.setForeground(false) }
+                group.addTask { viaReachability ? await lifecycle.setReachable(true) : await lifecycle.setForeground(true) }
+            }
+            // Whichever call ran last decides availability; if it is available the lifecycle must recover.
+            if !(await lifecycle.isAvailable) {
+                #expect(await lifecycle.status == .offline)
+                await (viaReachability ? lifecycle.setReachable(true) : lifecycle.setForeground(true))
+            }
+            for _ in 0..<300 {
+                if await lifecycle.status == .connected { break }
+                try await Task.sleep(for: .milliseconds(10))
+            }
+            let settled = await lifecycle.status
+            #expect(settled == .connected, "iteration \(iteration) settled \(settled)")
+            if settled != .connected { break }
+        }
+        await lifecycle.stop()
+        await connection.disconnect()
+    }
 }
 
 private actor Counter {

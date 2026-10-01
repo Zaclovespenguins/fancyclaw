@@ -114,14 +114,20 @@ public actor ConnectionLifecycle {
         await reconcileAvailability()
     }
 
+    /// True when the app is foregrounded and the network is reachable.
+    public var isAvailable: Bool { foreground && reachable }
+
     private func reconcileAvailability() async {
         if !foreground || !reachable {
+            // Publish offline before suspending so an interleaved foreground/reachable change sees it.
             epoch = UUID()
             recovery?.cancel()
             recovery = nil
             watchdog?.cancel()
-            await connection.disconnect()
             setStatus(.offline)
+            await connection.disconnect()
+            // Availability may have returned while disconnecting; that caller saw .offline and may have scheduled recovery already.
+            if foreground && reachable && status != .connected { scheduleRecovery() }
         } else if status != .connected {
             scheduleRecovery()
         }
@@ -157,6 +163,7 @@ public actor ConnectionLifecycle {
             } catch is CancellationError { return }
             catch let error as GatewayErrorShape where error.code != .unavailable && error.retryable != true {
                 Self.logger.error("Gateway recovery requires authentication")
+                guard generation == epoch else { return }
                 recovery = nil
                 setStatus(.offline)
                 return

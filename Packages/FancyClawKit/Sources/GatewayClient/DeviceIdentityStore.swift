@@ -1,7 +1,13 @@
 import Foundation
 import Security
 
-public struct DeviceIdentityStore: Sendable {
+/// The device-token surface `GatewayConnection` needs; lets tests inject Keychain failures.
+public protocol DeviceTokenStoring: Sendable {
+    func deviceToken(deviceID: String, role: String) throws -> String?
+    func saveDeviceToken(_ token: String, deviceID: String, role: String) throws
+}
+
+public struct DeviceIdentityStore: DeviceTokenStoring {
     private let service: String
 
     public init(service: String = "com.zacisnotacompany.fancyclaw.device") {

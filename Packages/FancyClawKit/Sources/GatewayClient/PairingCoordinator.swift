@@ -27,18 +27,14 @@ public struct PairingCoordinator: Sendable {
 
     public func connect(using operation: ConnectOperation, onWaiting: WaitingHandler = { _, _ in }) async throws -> HelloOK {
         var attempt = 0
-        var lastPairingError: GatewayErrorShape?
         while true {
             try Task.checkCancellation()
-            if let lastPairingError, schedule.delay(afterAttempt: attempt - 1, elapsed: elapsed()) == nil {
-                throw lastPairingError
-            }
             do {
                 let hello = try await operation()
                 try Task.checkCancellation()
                 return hello
             } catch let error as GatewayErrorShape where error.pairingRequestId != nil {
-                lastPairingError = error
+                // The clipped final sleep ends at the deadline; the loop then makes one last attempt before this throws.
                 let elapsedTime = elapsed()
                 guard let delay = schedule.delay(afterAttempt: attempt, elapsed: elapsedTime),
                       let requestID = error.pairingRequestId else { throw error }

@@ -1,6 +1,6 @@
 # Gateway client connection fixes
 
-Date: 2026-10-01. Status: planned; not yet implemented. Parent review: [code-review-2026-10-01](code-review-2026-10-01.md).
+Date: 2026-10-01. Status: fixed and verified (B4 lifecycle half, B6, B10, B11, B12); the app half of B4 is tracked separately. Parent review: [code-review-2026-10-01](code-review-2026-10-01.md).
 
 Owned files: `Packages/FancyClawKit/Sources/GatewayClient/**` and `Packages/FancyClawKit/Tests/GatewayClientTests/**`. Use FakeGateway as-is; if a new FakeGateway seam is truly required, keep it additive and minimal.
 
@@ -58,3 +58,12 @@ Verify by running `GatewayClientTests` through the simulator test plan, then bui
 
 ## Actual fix
 
+Each regression test was written first and confirmed failing against the old behavior (with only the additive seams below in place), then passing after the fix.
+
+- **B4 (lifecycle):** `reconcileAvailability` now publishes `.offline` (and bumps `epoch`) before awaiting `disconnect()`, then re-checks availability afterward and schedules recovery if it returned and nothing is connected. The auth-failure branch of `recover` also ignores a stale epoch. Added read-only `ConnectionLifecycle.isAvailable` (foreground && reachable) so tests can judge the settled state. Test: `interleavedAvailabilityChangesNeverSettleOffline` (foreground and reachability variants, 30 concurrent flip pairs each against FakeGateway). Failed before for both variants; passes after.
+- **B6:** `connect` checks `attemptGeneration == generation` before installing a socket and after the startup-retry sleep, throwing `CancellationError` when stale. The retry sleep uses injected timing. Test: `staleStartupRetryDoesNotReplaceTheLiveSocket` (failed with `.timedOut` before).
+- **B10:** A Keychain save failure after the handshake is logged (no token values) and the connection stays up. The catch path now also clears `mediaOrigin`, `mediaBearer`, `policy` and `grantedScopes`. Seam: new `DeviceTokenStoring` protocol (implemented by `DeviceIdentityStore`); `GatewayConnection.init` takes `(any DeviceTokenStoring)?`. Test: `keychainSaveFailureKeepsTheConnection` (failed before; the pre-fix run only had the seam added).
+- **B11:** `request()` registers through a helper inside `withTaskCancellationHandler`, so caller cancellation fails that RPC with `CancellationError`. Timeout tasks are tracked per ID and cancelled on reply, failure or disconnect, and use injected timing. Tests: `cancellingTheCallerFailsTheRequestPromptly` (failed before: waited for the timeout), `answeredRequestCancelsItsTimeout` (failed before), `unansweredRequestStillTimesOutOnInjectedTiming`.
+- **B12:** Removed the pre-attempt expiry check in `PairingCoordinator.connect`; the post-failure `schedule.delay == nil` check ends the loop, so the clipped final sleep is followed by exactly one last attempt. Tests: new `finalAttemptAtTheDeadlineCanStillSucceed`; `coordinatorStopsAtTheApprovalDeadline` now expects 2 attempts (was 1, which encoded the bug). Both failed before.
+- **Public API (all additive):** `GatewayConnection.init(..., timing: GatewayTiming = .continuous)`, `DeviceTokenStoring`, `ConnectionLifecycle.isAvailable`. No TestSupport changes.
+- **Verification:** iPhone 18 Pro / iOS 27.0, `GatewayClientTests` + `SystemIntegrationTests` + `ChatCoreTests`: 108 passed, 0 failed. App target builds. Not run: full test plan / UI tests.

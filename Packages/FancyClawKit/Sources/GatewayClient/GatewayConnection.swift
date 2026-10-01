@@ -18,10 +18,12 @@ public actor GatewayConnection {
     private let externalImageSession: URLSession
     private let session: URLSession
     private let identity: DeviceIdentity
-    private let identityStore: DeviceIdentityStore?
+    private let identityStore: (any DeviceTokenStoring)?
+    private let timing: GatewayTiming
     private var socket: URLSessionWebSocketTask?
     private var reader: Task<Void, Never>?
     private var pending: [String: CheckedContinuation<Data, Error>] = [:]
+    private var pendingTimeouts: [String: Task<Void, Never>] = [:]
     private var eventContinuations: [UUID: AsyncStream<GatewayEventFrame>.Continuation] = [:]
     private var generation = UUID()
     private var ready = false
@@ -32,10 +34,11 @@ public actor GatewayConnection {
     public private(set) var grantedScopes: [OperatorScope] = []
     private var maxPayload = 25 * 1024 * 1024
 
-    public init(identity: DeviceIdentity, identityStore: DeviceIdentityStore? = nil,
-                session: URLSession = .shared) {
+    public init(identity: DeviceIdentity, identityStore: (any DeviceTokenStoring)? = nil,
+                session: URLSession = .shared, timing: GatewayTiming = .continuous) {
         self.identity = identity
         self.identityStore = identityStore
+        self.timing = timing
         self.session = session
         let imageConfiguration = URLSessionConfiguration.ephemeral
         imageConfiguration.urlCache = nil
@@ -101,6 +104,8 @@ public actor GatewayConnection {
         var attempts = 0
         while true {
             attempts += 1
+            // A stale attempt must not install its socket over a newer connection's.
+            guard attemptGeneration == generation else { throw CancellationError() }
             let task = session.webSocketTask(with: url)
             task.resume()
             socket = task
@@ -139,7 +144,11 @@ public actor GatewayConnection {
                 if url.scheme == "wss" || url.host == "localhost" || url.host == "127.0.0.1" || url.host == "::1" {
                     let issued = hello.auth.deviceTokens?.first { $0.role == .operator }?.deviceToken
                         ?? hello.auth.deviceToken
-                    if let issued { try identityStore?.saveDeviceToken(issued, deviceID: identity.deviceID, role: "operator") }
+                    if let issued {
+                        // The connection is already authenticated; a Keychain failure only means the token isn't refreshed.
+                        do { try identityStore?.saveDeviceToken(issued, deviceID: identity.deviceID, role: "operator") }
+                        catch { Self.logger.error("Could not persist the device token; continuing without refreshing it") }
+                    }
                 }
                 reader = Task { await readLoop(task, generation: attemptGeneration) }
                 return hello
@@ -148,6 +157,10 @@ public actor GatewayConnection {
                 guard attemptGeneration == generation else { throw CancellationError() }
                 socket = nil
                 ready = false
+                mediaOrigin = nil
+                mediaBearer = nil
+                policy = nil
+                grantedScopes = []
                 if let gatewayError = error as? GatewayErrorShape {
                     if gatewayError.detailCode == .authTokenMismatch && gatewayError.canRetryWithDeviceToken,
                        selectedToken != storedToken, let storedToken, attempts < 2 {
@@ -156,7 +169,8 @@ public actor GatewayConnection {
                     }
                     if gatewayError.isStartupUnavailable && attempts < 3 {
                         let delay = min(max(gatewayError.retryAfterMs ?? 500, 0), 5_000)
-                        try await Task.sleep(for: .milliseconds(delay))
+                        try await timing.sleep(.milliseconds(delay))
+                        guard attemptGeneration == generation else { throw CancellationError() }
                         continue
                     }
                 }
@@ -173,16 +187,13 @@ public actor GatewayConnection {
         let frame = RequestFrame(method: method, params: params)
         let data = try GatewayCoding.encoder().encode(frame)
         guard data.count <= maxPayload else { throw ConnectionError.frameTooLarge }
-        let responseData = try await withCheckedThrowingContinuation { continuation in
-            pending[frame.id] = continuation
-            Task {
-                do { try await socket.send(.string(String(decoding: data, as: UTF8.self))) }
-                catch { self.failPending(frame.id, error: error) }
+        let id = frame.id
+        let responseData: Data = try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Data, Error>) in
+                register(continuation, id: id, data: data, socket: socket, timeout: timeout)
             }
-            Task {
-                try? await Task.sleep(for: timeout)
-                self.failPending(frame.id, error: ConnectionError.timedOut)
-            }
+        } onCancel: {
+            Task { await self.failPending(id, error: CancellationError()) }
         }
         let response = try GatewayCoding.decoder().decode(ResponseFrame<Payload>.self, from: responseData)
         guard response.id == frame.id else { throw ConnectionError.invalidResponse }
@@ -194,8 +205,29 @@ public actor GatewayConnection {
         return payload
     }
 
+    private func register(_ continuation: CheckedContinuation<Data, Error>, id: String, data: Data,
+                          socket: URLSessionWebSocketTask, timeout: Duration) {
+        if Task.isCancelled { continuation.resume(throwing: CancellationError()); return }
+        pending[id] = continuation
+        Task {
+            do { try await socket.send(.string(String(decoding: data, as: UTF8.self))) }
+            catch { self.failPending(id, error: error) }
+        }
+        let timing = timing
+        pendingTimeouts[id] = Task {
+            do { try await timing.sleep(timeout) } catch { return }
+            self.failPending(id, error: ConnectionError.timedOut)
+        }
+    }
+
     private func failPending(_ id: String, error: Error) {
-        pending.removeValue(forKey: id)?.resume(throwing: error)
+        takePending(id)?.resume(throwing: error)
+    }
+
+    /// Removes a pending RPC and cancels its timeout so neither outlives the response.
+    private func takePending(_ id: String) -> CheckedContinuation<Data, Error>? {
+        pendingTimeouts.removeValue(forKey: id)?.cancel()
+        return pending.removeValue(forKey: id)
     }
 
     private func readLoop(_ task: URLSessionWebSocketTask, generation readerGeneration: UUID) async {
@@ -206,7 +238,7 @@ public actor GatewayConnection {
                 let header = try GatewayCoding.decoder().decode(FrameHeader.self, from: data)
                 switch header.type {
                 case .response:
-                    if let id = header.id { pending.removeValue(forKey: id)?.resume(returning: data) }
+                    if let id = header.id { takePending(id)?.resume(returning: data) }
                 case .event:
                     let event: GatewayEventFrame
                     do {
@@ -274,6 +306,8 @@ public actor GatewayConnection {
     }
 
     private func failPending(_ error: Error) {
+        for timeout in pendingTimeouts.values { timeout.cancel() }
+        pendingTimeouts.removeAll()
         for continuation in pending.values { continuation.resume(throwing: error) }
         pending.removeAll()
     }
