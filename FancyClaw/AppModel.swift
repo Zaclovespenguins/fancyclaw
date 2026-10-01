@@ -30,7 +30,16 @@ final class AppModel {
     private var lifecycle: ConnectionLifecycle?
     private var statusTask: Task<Void, Never>?
     private var pathTask: Task<Void, Never>?
-    private var isForeground = true
+    private var isForeground: Bool { foregroundCoordinator.isForeground }
+    @ObservationIgnored private var coordinator: ForegroundCoordinator?
+    private var foregroundCoordinator: ForegroundCoordinator {
+        if let coordinator { return coordinator }
+        let made = ForegroundCoordinator(
+            lifecycle: { [weak self] value in await self?.lifecycle?.setForeground(value) },
+            backgroundActivities: { [weak self] in await self?.runActivities?.connectionDidDisconnect() })
+        coordinator = made
+        return made
+    }
     private var prepared = false
     private var isTestMode = false
     private var isConnecting = false
@@ -257,7 +266,10 @@ final class AppModel {
 
     private func requireIntentConnection() async throws {
         await prepare()
-        guard status == .connected, connection != nil else { throw IntentError.notConnected }
+        // Warm launches arrive while the socket is still recovering from backgrounding; wait for it, bounded.
+        if isForeground == false { await setForeground(true) }
+        try await ConnectionWaiter(timing: .continuous).waitUntilConnected(
+            status: { [weak self] in self?.status ?? .offline }, hasConnection: { [weak self] in self?.connection != nil })
     }
 
     func askFromIntent(_ text: String) async throws -> String {
@@ -326,10 +338,8 @@ final class AppModel {
     }
 
     func setForeground(_ value: Bool) async {
-        isForeground = value
-        if !value { await runActivities?.connectionDidDisconnect() }
-        await lifecycle?.setForeground(value)
-        if value && lifecycle == nil && conversation != nil { await reconnect() }
+        await foregroundCoordinator.set(value)
+        if value && isForeground && lifecycle == nil && conversation != nil { await reconnect() }
     }
 
     func disconnect() async {
@@ -351,6 +361,7 @@ final class AppModel {
         connection = nil
         status = .offline
         if !isTestMode {
+            initialProfile = nil
             do { try GatewayProfileStore().delete() }
             catch { errorMessage = error.localizedDescription }
         }

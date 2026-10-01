@@ -1,6 +1,6 @@
 # App lifecycle and intent connection fixes
 
-Date: 2026-10-01. Status: planned; not yet implemented. Parent review: [code-review-2026-10-01](code-review-2026-10-01.md). Depends on the B4 lifecycle half in [gateway-client-fixes](gateway-client-fixes.md).
+Date: 2026-10-01. Status: fixed and verified (unit level; see Actual fix for gaps). Parent review: [code-review-2026-10-01](code-review-2026-10-01.md). Depends on the B4 lifecycle half in [gateway-client-fixes](gateway-client-fixes.md).
 
 Owned files:
 - `FancyClaw/AppModel.swift`, `FancyClaw/ContentView.swift`, `FancyClaw/Onboarding/**`, `FancyClaw/SystemIntegration/**`
@@ -52,4 +52,10 @@ Write each regression test first and confirm it fails; then fix.
 Verify by running `SystemIntegrationTests` plus the affected UI tests, then build the app and embedded extension. Check light, dark and Dynamic Type for any visible change.
 
 ## Actual fix
+
+- **B3:** Added `ConnectionWaiter` (`@MainActor`, `SystemIntegration`): polls the status with an injected sleep (`GatewayTiming`), returns on `.connected`, throws `IntentError.notConnected` at once with no configured connection, and after 10 s of waiting. `AppModel.requireIntentConnection` now foregrounds if needed and uses it; Ask's 25 s reply wait is unchanged. Tests (`ConnectionWaiterTests`): reconnect-then-connected succeeds, reconnecting-only times out (100 polls), no connection fails with no sleep.
+- **B4 (app half):** Added `ForegroundCoordinator` (`SystemIntegration`). `AppModel.setForeground` goes through it: the latest value wins, `lifecycle.setForeground` is called synchronously before any Live Activity await, and background activity cleanup is skipped when the app is foreground again. Test: `latestForegroundValueReachesLifecycleBeforeActivityWork` (background cleanup suspended; lifecycle must already see `[false, true]`).
+- **B5:** `AppModel.disconnect()` sets `initialProfile = nil` outside test mode, so a new `OnboardingView` starts with empty fields, a persistent identity and Bonjour discovery. Test-mode (FakeGateway) onboarding is untouched.
+- **Fail-before caveat:** the new helper types did not exist, so the regression tests failed to compile before the fix rather than failing on assertions. B5 and the `AppModel` wiring have no automated test: a UI test needs a debug seam seeding a saved profile with non-test-mode semantics; I judged that too invasive. Gap: B5 and the warm-launch UI path are unverified on screen.
+- **Verification:** `SystemIntegrationTests` 18 passed. Full plan (iPhone 18 Pro, iOS 27.0): 229 discovered, 227 passed, 2 failed, both `PolishTests` contrast audits (`testChatAndDrawerAccessibility`, `testRichOutputAccessibilityAndLargeText`; elements: 'Notes.txt' attachment chip and rich-output text). They fail identically with my changes stashed (re-run of `testRichOutputAccessibilityAndLargeText` at HEAD), so they come from the earlier fix packages, not this one.
 
