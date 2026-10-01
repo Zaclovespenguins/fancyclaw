@@ -1,6 +1,6 @@
 # ChatCore conversation store fixes
 
-Date: 2026-10-01. Status: planned; not yet implemented. Parent review: [code-review-2026-10-01](code-review-2026-10-01.md).
+Date: 2026-10-01. Status: fixed and verified (ChatCoreTests + SystemIntegrationTests, 80 passed). Parent review: [code-review-2026-10-01](code-review-2026-10-01.md).
 
 Owned files: `Packages/FancyClawKit/Sources/ChatCore/**`, `Packages/FancyClawKit/Tests/ChatCoreTests/**`, and the message-row view in `FancyClaw/Chat/` (for B2's retry affordance only). Don't edit `AppModel.swift`, `GatewayClient`, or `TestSupport`; FakeGateway's existing `rpcErrors`/`queuedRPCReplies` seams are enough.
 
@@ -60,4 +60,12 @@ Write each regression test first and confirm it fails on the current code; then 
 Verify by running `ChatCoreTests` and `SystemIntegrationTests` through the simulator test plan (iPhone 18 Pro / iOS 27.0), then build the app.
 
 ## Actual fix
+All five were fixed test-first in `ConversationRaceTests.swift` (7 tests); every test failed on the old code and passes now. No existing tests needed changes.
 
+- **B9:** `start()` now claims an `isStarting` flag before awaiting `events()`, and a `startGeneration` counter makes a `stopListening()` during that await cancel the pending start. Test: `concurrentStartDoesNotLeakASubscription`.
+- **B1:** A `.final` with `yielded == true` updates the assistant row from its message and keeps `isStreaming`, `activeRunID` and the run open (no terminal flag, no refresh). Test: `yieldedFinalKeepsTheRunOpen`.
+- **B8:** `reconcileHistory` reuses the live `"R:assistant"` row id for a canonical assistant with `runId` but no `entryId` and no `toolCallId`, when that live row exists and the id is not already taken. `historyIdentity` is unchanged. `pendingAssistantMessages` is keyed per run, so one run's assistant entries don't mix. Test: `historyAssistantWithRunIDAdoptsTheStreamingRow`.
+- **B7:** `refreshHistory` and `loadOlderHistory` no longer discard a snapshot because events arrived; reconcile already preserves streaming rows and unconfirmed echoes. A follow-up refresh is scheduled only when the revision moved and `!isStreaming`. Test: `historySnapshotIsAppliedWhileDeltasArrive` (snapshot applied, at most 2 `chat.history` requests). Existing `HistoryTests` did not encode the old behavior and pass unchanged.
+- **B2:** `ConversationMessage.deliveryFailed` is set when `chat.send` throws; the outbox entry stays. `retry` clears it and resends with the same key (guarded against concurrent in-flight resends). New `retryFailedSends()` resends failed entries in transcript order. `refreshHistory()` calls it after a successful snapshot, so confirmed keys are not resent (reconcile removes them first). `send` still returns true, now documented as "accepted into the transcript". Disconnect copy is unchanged because the behavior now matches it. UI: `ChatMessageRow` shows a "Not sent · Retry" button (44 pt minimum height, accessibility label, identifier `chat.retry.<id>`) on failed user rows. This required a small `onRetry` closure wiring in `ChatView.swift`, which wasn't on the owned list. Tests: `failedSendIsMarkedAndRetriedWithTheSameKey`, `failedSendKeepsItsKeyAcrossRetries`, `refreshResendsOnlyUnconfirmedFailedSends`. FakeGateway cannot clear `fail(...)`, so the first failure uses a not-yet-connected `GatewayConnection`.
+
+Verification: XcodeBuildMCP `test_sim` on iPhone 18 Pro / iOS 27.0 with ChatCoreTests and SystemIntegrationTests: 80 passed, 0 failed. `build_run_sim` with `-DemoConversation` built and launched, and the chat screen rendered normally. The failed-send state isn't reachable in demo mode, so the retry button was not seen on screen, and light/dark/Dynamic Type checks of it are still pending.

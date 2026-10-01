@@ -7,6 +7,7 @@ struct ChatMessageRow: View {
     let message: ConversationMessage
     let gatewayBaseURL: URL?
     let loadImage: @Sendable (ContentBlock.Media) async throws -> Data
+    var onRetry: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -20,6 +21,19 @@ struct ChatMessageRow: View {
                             .padding(.vertical, 11)
                             .background(.tint.opacity(0.14), in: .rect(cornerRadius: 22))
                     }
+                }
+                if message.deliveryFailed, let onRetry {
+                    Button(action: onRetry) {
+                        Label("Not sent · Retry", systemImage: "exclamationmark.arrow.circlepath")
+                            .font(.footnote)
+                            .frame(minHeight: 44)
+                            .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.red)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .accessibilityLabel("Message not sent. Retry")
+                    .accessibilityIdentifier("chat.retry.\(message.id)")
                 }
             } else {
                 ForEach(message.tools) { tool in ChatToolCard(tool: tool) }

@@ -37,6 +37,9 @@ public final class ConversationStore {
     private var runs: [String: RunState] = [:]
     private var outbox: [String: PendingSend] = [:]
     private var isAsking = false
+    private var isStarting = false
+    private var inFlightKeys: Set<String> = []
+    private var startGeneration = 0
 
     private struct RunState {
         var lastSequence = -1
@@ -61,10 +64,16 @@ public final class ConversationStore {
         } catch { errorMessage = "Couldn’t read cached history. \(error.localizedDescription)" }
     }
 
-    /// Fetches a tail snapshot or catches up from the last durable cursor.
+    /// Fetches a tail snapshot or catches up from the last durable cursor, then resends failed sends the snapshot doesn't confirm.
     public func refreshHistory() async {
-        guard !invalidated else { return }
-        guard !isLoadingHistory else { needsRefresh = true; return }
+        guard await loadSnapshot() else { return }
+        await retryFailedSends()
+    }
+
+    /// Returns true when a snapshot was applied.
+    private func loadSnapshot() async -> Bool {
+        guard !invalidated else { return false }
+        guard !isLoadingHistory else { needsRefresh = true; return false }
         isLoadingHistory = true
         let revision = transcriptRevision
         defer { finishLoadingHistory() }
@@ -72,8 +81,7 @@ public final class ConversationStore {
             if let deltaCursor {
                 let catchUp: ChatHistoryCatchUp = try await connection.request("chat.history",
                     params: ChatHistoryParams(sessionKey: sessionKey, cursor: deltaCursor), returning: ChatHistoryCatchUp.self)
-                guard !invalidated else { return }
-                guard revision == transcriptRevision else { needsRefresh = true; return }
+                guard !invalidated else { return false }
                 if case .delta(let delta) = catchUp {
                     let oldCount = canonicalHistory.count
                     canonicalHistory = Self.merging(canonicalHistory, with: delta.messages)
@@ -83,29 +91,36 @@ public final class ConversationStore {
                     updateRunState(delta.sessionInfo)
                     errorMessage = nil
                     try persistHistory()
-                    return
+                    scheduleFollowUpIfStale(since: revision)
+                    return true
                 }
             }
             let page: ChatHistoryPage = try await connection.request("chat.history",
                 params: ChatHistoryParams(sessionKey: sessionKey, limit: 100), returning: ChatHistoryPage.self)
-            guard !invalidated else { return }
-            guard revision == transcriptRevision else { needsRefresh = true; return }
+            guard !invalidated else { return false }
             errorMessage = nil
             applyPage(page)
             try persistHistory()
+            scheduleFollowUpIfStale(since: revision)
+            return true
         } catch { errorMessage = "Couldn’t refresh the conversation. \(error.localizedDescription)" }
+        return false
+    }
+
+    /// Reconcile preserves streaming rows and unconfirmed echoes, so a snapshot that raced events is still applied.
+    /// A follow-up is only worth a request once the stream is quiet; terminal events refresh on their own.
+    private func scheduleFollowUpIfStale(since revision: Int) {
+        if revision != transcriptRevision && !isStreaming { needsRefresh = true }
     }
 
     public func loadOlderHistory() async {
         guard !invalidated, hasMoreHistory, let offset = nextOffset, !isLoadingHistory else { return }
         isLoadingHistory = true
-        let revision = transcriptRevision
         defer { finishLoadingHistory() }
         do {
             let page: ChatHistoryPage = try await connection.request("chat.history",
                 params: ChatHistoryParams(sessionKey: sessionKey, limit: 100, offset: offset), returning: ChatHistoryPage.self)
             guard !invalidated else { return }
-            guard revision == transcriptRevision else { needsRefresh = true; return }
             errorMessage = nil
             // A reset during pagination invalidates the page and its offsets.
             if let old = sessionID, let new = page.sessionId, old != new {
@@ -182,8 +197,14 @@ public final class ConversationStore {
 
     /// Registers for Gateway events and consumes them until cancelled.
     public func start() async {
-        guard eventTask == nil else { return }
+        // `events()` suspends, so claim the slot first or concurrent callers each leak a subscription.
+        guard eventTask == nil, !isStarting else { return }
+        isStarting = true
+        defer { isStarting = false }
+        let generation = startGeneration
         let stream = await connection.events()
+        // A stop or invalidation during the await cancels this start.
+        guard eventTask == nil, generation == startGeneration else { return }
         eventTask = Task { [weak self] in
             for await frame in stream {
                 guard !Task.isCancelled else { return }
@@ -199,6 +220,7 @@ public final class ConversationStore {
     }
 
     public func stopListening() {
+        startGeneration += 1
         flushStreaming()
         throttle.cancel()
         eventTask?.cancel()
@@ -216,6 +238,8 @@ public final class ConversationStore {
     }
 
     /// Adds an optimistic user message, then submits it with a stable retry key.
+    /// The result means "accepted into the transcript", not "delivered": a failed `chat.send` still returns true
+    /// so the composer clears, and the row is flagged `deliveryFailed` for `retry`/`retryFailedSends`.
     @discardableResult
     public func send(_ text: String, attachments: [PreparedAttachment] = []) async -> Bool {
         await submit(text, attachments: attachments, idempotencyKey: UUID().uuidString)
@@ -280,8 +304,16 @@ public final class ConversationStore {
 
     /// Retries a failed outbox entry using the same idempotency key.
     public func retry(idempotencyKey: String) async {
-        guard let pending = outbox[idempotencyKey] else { return }
+        guard let pending = outbox[idempotencyKey], !inFlightKeys.contains(idempotencyKey) else { return }
         await submit(pending.text, attachments: pending.attachments, idempotencyKey: idempotencyKey, existingMessageID: pending.messageID)
+    }
+
+    /// Resubmits every failed outbox entry in transcript order; same-key resends are idempotent on the Gateway.
+    public func retryFailedSends() async {
+        let keys = messages.filter(\.deliveryFailed).compactMap { row in
+            outbox.first(where: { $0.value.messageID == row.id })?.key
+        }
+        for key in keys { await retry(idempotencyKey: key) }
     }
 
     public func abort() async {
@@ -322,7 +354,13 @@ public final class ConversationStore {
             if role == .assistant, let runID = message.metadata?.runId, let entryID = message.entryId {
                 adoptAssistantEntryID(entryID, for: runID)
             }
-            let id = message.historyIdentity
+            var id = message.historyIdentity
+            // A run-keyed assistant without an entry ID is the row already streaming for that run.
+            if role == .assistant, message.entryId == nil, let runID = message.metadata?.runId,
+               message.toolCallId?.isEmpty ?? true {
+                let liveID = assistantMessageID(for: runID)
+                if messages.contains(where: { $0.id == liveID }) && !canonical.contains(where: { $0.id == liveID }) { id = liveID }
+            }
             if let key = message.idempotencyKey { confirmedKeys.insert(key) }
             let currentStreaming = messages.first(where: { $0.id == id || $0.id == assistantMessageID(for: message.metadata?.runId ?? "") })
             canonical.append(ConversationMessage(
@@ -384,6 +422,22 @@ public final class ConversationStore {
             row.isStreaming = true
             pendingAssistantMessages[event.runId] = row
             throttle.schedule { [weak self] in self?.flushStreaming() }
+        case .final(let final) where final.yielded == true:
+            // The run continues (for example a tool handoff); show the yielded text and wait for the real final.
+            activeRunID = event.runId
+            isStreaming = true
+            if let message = final.message, message.role == .assistant {
+                if let entryID = message.entryId { adoptAssistantEntryID(entryID, for: event.runId) }
+                flushStreaming()
+                let id = assistantMessageID(for: event.runId)
+                var row = messages.first(where: { $0.id == id }) ?? ConversationMessage(id: id, role: .assistant, text: "")
+                row.text = Self.visibleText(message)
+                row.images = ConversationMessage.images(from: message)
+                row.files = ConversationMessage.files(from: message)
+                row.tools = Self.historyTools(message, current: row.tools)
+                row.isStreaming = true
+                if let index = messages.firstIndex(where: { $0.id == id }) { messages[index] = row } else { messages.append(row) }
+            }
         case .final(let final):
             settle(event.runId, message: final.message, error: nil)
             run.isTerminal = true
@@ -412,12 +466,13 @@ public final class ConversationStore {
         guard !invalidated else { return false }
         do { try await attachmentPipeline.validateSubmission(attachments, params: params, policy: policy) }
         catch { errorMessage = error.localizedDescription; return false }
-        guard !invalidated else { return false }
+        guard !invalidated, inFlightKeys.insert(idempotencyKey).inserted else { return false }
+        defer { inFlightKeys.remove(idempotencyKey) }
         transcriptRevision += 1
         let messageID = existingMessageID ?? "\(idempotencyKey):user"
         if existingMessageID == nil {
             messages.append(ConversationMessage(id: messageID, role: .user, text: text, attachments: attachments))
-        }
+        } else { setDeliveryFailed(false, messageID: messageID) }
         outbox[idempotencyKey] = PendingSend(text: text, attachments: attachments, messageID: messageID)
         errorMessage = nil
         isStreaming = true
@@ -438,10 +493,15 @@ public final class ConversationStore {
             }
         } catch {
             errorMessage = error.localizedDescription
+            setDeliveryFailed(true, messageID: messageID)
             isStreaming = false
             if activeRunID == idempotencyKey { activeRunID = nil }
         }
         return true
+    }
+
+    private func setDeliveryFailed(_ failed: Bool, messageID: String) {
+        if let index = messages.firstIndex(where: { $0.id == messageID }) { messages[index].deliveryFailed = failed }
     }
 
     func adopt(_ response: ChatSendResponse, idempotencyKey: String) {

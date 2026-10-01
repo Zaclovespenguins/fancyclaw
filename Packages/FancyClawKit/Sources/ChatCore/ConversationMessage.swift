@@ -10,9 +10,12 @@ public struct ConversationMessage: Identifiable, Sendable, Hashable {
     public var files: [ContentBlock.Media]
     public var attachments: [PreparedAttachment]
     public var tools: [ConversationTool]
+    /// True for a user row whose `chat.send` failed; the outbox still holds it for a same-key retry.
+    public var deliveryFailed: Bool
 
     public init(id: String, role: MessageRole, text: String, isStreaming: Bool = false,
-                images: [ContentBlock.Media] = [], attachments: [PreparedAttachment] = [], files: [ContentBlock.Media] = [], tools: [ConversationTool] = []) {
+                images: [ContentBlock.Media] = [], attachments: [PreparedAttachment] = [], files: [ContentBlock.Media] = [], tools: [ConversationTool] = [],
+                deliveryFailed: Bool = false) {
         self.id = id
         self.role = role
         self.text = text
@@ -21,6 +24,7 @@ public struct ConversationMessage: Identifiable, Sendable, Hashable {
         self.images = images
         self.attachments = attachments
         self.tools = tools
+        self.deliveryFailed = deliveryFailed
     }
 }
 
