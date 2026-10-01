@@ -63,8 +63,8 @@ struct ChatView: View {
                     ForEach(store.messages) { message in
                         ChatMessageRow(message: message, gatewayBaseURL: store.gatewayBaseURL, loadImage: { [store] media in
                             try await store.imageData(media)
-                        }, onRetry: { [store] in
-                            Task { await store.retryFailedSends() }
+                        }, onRetry: { [store, id = message.id] in
+                            Task { await store.retry(messageID: id) }
                         })
                             .id(message.id)
                     }

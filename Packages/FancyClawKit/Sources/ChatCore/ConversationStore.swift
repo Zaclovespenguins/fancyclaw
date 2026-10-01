@@ -312,6 +312,13 @@ public final class ConversationStore {
         await submit(pending.text, attachments: pending.attachments, idempotencyKey: idempotencyKey, existingMessageID: pending.messageID)
     }
 
+    /// Retries the failed send behind one transcript row, including Gateway-rejected sends that
+    /// `retryFailedSends()` skips. Does nothing when the row has no outbox entry.
+    public func retry(messageID: String) async {
+        guard let key = outbox.first(where: { $0.value.messageID == messageID })?.key else { return }
+        await retry(idempotencyKey: key)
+    }
+
     /// Resubmits every failed outbox entry in transcript order; same-key resends are idempotent on the Gateway.
     public func retryFailedSends() async {
         let keys = messages.filter(\.deliveryFailed).compactMap { row in

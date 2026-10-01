@@ -216,6 +216,30 @@ struct ConversationRaceTests {
         #expect(fake.receivedRequests.filter { $0.method == "chat.send" }.count == 2)
         await connection.disconnect()
     }
+
+    @Test func retryByMessageIDResendsAGatewayRejectedSend() async throws {
+        let fake = try gateway()
+        fake.fail("chat.send", with: .init(code: .invalidRequest, message: "rejected"))
+        fake.reply(to: "chat.history", withSequence: [
+            try JSONValue(encoding: ChatHistoryPage(sessionKey: SessionKey.main.rawValue, sessionId: "one", messages: [], hasMore: false, deltaCursor: "c"))])
+        defer { fake.stop() }
+        let connection = GatewayConnection(identity: .generate())
+        _ = try await connection.connect(to: fake.start(), token: "test-token")
+        let store = ConversationStore(connection: connection, streamingInterval: .zero)
+        await store.send("nope")
+        let row = try #require(store.messages.first)
+        #expect(row.deliveryFailed)
+        // The bulk path skips Gateway-rejected sends; the per-message Retry button must not.
+        await store.retryFailedSends()
+        #expect(fake.receivedRequests.filter { $0.method == "chat.send" }.count == 1)
+        await store.retry(messageID: row.id)
+        let sends = fake.receivedRequests.filter { $0.method == "chat.send" }
+        #expect(sends.count == 2)
+        #expect(sendKey(fake, at: 0) == sendKey(fake, at: 1))
+        await store.retry(messageID: "unknown")
+        #expect(fake.receivedRequests.filter { $0.method == "chat.send" }.count == 2)
+        await connection.disconnect()
+    }
 }
 
 private extension Array {
