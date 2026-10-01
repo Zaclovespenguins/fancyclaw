@@ -1,6 +1,6 @@
 # Code review findings, October 2026
 
-Date: 2026-10-01. Status: findings confirmed by reading code; fixes planned in four work-package notes and in progress.
+Date: 2026-10-01. Status: all 17 findings fixed and simulator-verified (iPhone 18 Pro / iOS 27.0); two pre-existing PolishTests contrast failures remain open, and the B3/B5 on-screen paths are unverified.
 
 ## Summary
 
@@ -39,3 +39,20 @@ Fixes are grouped into four work packages, each owning disjoint files: ChatCore,
 
 ## Actual fix
 
+All four packages are implemented; each package note's **Actual fix** has per-bug details and test evidence. Commits:
+- `0147a01`: DesignSystem/TestSupport.
+- `77a5bd8`: GatewayClient.
+- `dc001da` and `4d62d2d`: ChatCore. The second commit followed coordinator review: raced snapshots no longer overwrite live run state, and only transport failures auto-resend.
+- `b9d127d`: app/intents.
+- `4841062`: per-message Retry, so the button also works for Gateway-rejected sends.
+
+Full test plan after `b9d127d`: **229 discovered, 227 passed, 2 failed, 0 skipped**. `4841062` changed only ChatCore/ChatView, and its ChatCoreTests pass 69/69. The failures are `PolishTests/testChatAndDrawerAccessibility` and `PolishTests/testRichOutputAccessibilityAndLargeText`, both “Contrast failed” at `PolishTests.swift:120`. The failing elements are the `Notes.txt` attachment chip and rich-output text.
+
+These failures **predate this review**. Both tests fail at `c8973d2`, the pre-review HEAD, and pass at `254ff43`. Between those, `688ddec` touched only an import and `#Preview` code, which UI tests don't run. So `c8973d2` (“compact controls” font and padding changes in `ChatComposer.swift`, never run against the suite) is the likely cause. This is inferred, not confirmed by running at `688ddec`. Their fixes are left to the owner.
+
+Remaining gaps:
+- B3 (warm-launch intents) and B5 (forget Gateway) have unit-level coverage only; no UI test exercises them.
+- The B15 double-resume trap and the B13 on-screen label reset have no dedicated test.
+- Several fail-before checks for new helper APIs were compile failures, not assertion failures.
+
+Logs: `~/Library/Developer/XcodeBuildMCP/workspaces/bridge-cse_01SdtXZEdp6nPTp5oDqbrKhy-3a39498a758d/logs/`. Full suite: `test_sim_2026-10-01T20-14-25-489Z_pid39798_1b368b34.log`. Bracket runs: `…20-26-44-996Z…f51f0109.log` (`c8973d2`) and `…20-27-49-551Z…836bfaba.log` (`254ff43`).
