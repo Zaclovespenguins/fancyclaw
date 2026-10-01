@@ -1,6 +1,6 @@
 # Design system and test support fixes
 
-Date: 2026-10-01. Status: planned; not yet implemented. Parent review: [code-review-2026-10-01](code-review-2026-10-01.md).
+Date: 2026-10-01. Status: fixed and verified (B13–B17). Parent review: [code-review-2026-10-01](code-review-2026-10-01.md).
 
 Owned files: `Packages/FancyClawKit/Sources/DesignSystem/**`, `Packages/FancyClawKit/Sources/TestSupport/**`, and their test targets (`DesignSystemTests`, `TestSupportTests`). FakeGateway changes must keep existing tests passing; other packages depend on its behavior.
 
@@ -49,3 +49,15 @@ Verify by running `DesignSystemTests`, `TestSupportTests`, and `GatewayProtocolT
 
 ## Actual fix
 
+All five bugs are fixed. Each regression test was run before the fix and failed (B13's tests failed to compile because `CopyFeedback` did not exist; the other 9 test failures were assertion failures or timeouts).
+
+- **B13:** Factored the transient state into an internal `CopyFeedback` value in `MarkdownCodeBlock.swift`. A `.task(id: copyCount)` resets "Copied" after 2 s, and each tap restarts the timer. The haptic trigger is now `copyCount`, so repeat copies fire again; `hapticsEnabled` still gates it. Tests: `DesignSystemTests/CopyFeedbackTests` (4). No UI test was added, so the on-screen label return is not checked in a UI test.
+- **B14:** The seq-1 delta is now guarded by `activeRuns[runID] != nil`. Test: `FakeGatewayTests/abortDoesNotLeaveAStrayDelta` (before: `["aborted", "delta"]`; after: `["aborted"]`).
+- **B15:** `start()` resumes its continuation exactly once through a `ResumeOnce` box, maps `.cancelled` to a new `FakeError.stopped`, and reads and writes `listener` under `lock`. A `stopped` flag makes a `stop()` that races ahead of `start()` throw instead of hanging. Tests: `stopBeforeReadyThrowsInsteadOfHanging` (failed before), `normalStartAndStop`. A second-resume trap cannot be forced deterministically, so it has no dedicated test.
+- **B16:** `receiveRequest` catches per-request errors, records them in `failures`, replies `ok: false` with `invalidRequest` when the request ID is known, and always re-arms. Test: `malformedRequestDoesNotKillTheReceiveLoop` (before: `.timedOut` on the follow-up `sessions.list`).
+- **B17:** `ProtocolSchema` now checks `maximum`, `minItems`, `maxItems`, `pattern`, `allOf`, `not`, and a true `oneOf` (exactly one match). `anyOf` and `oneOf` are checked independently. Tests: `ProtocolSchemaConstraintTests` (5). Before the fix, 11 expectations failed. Existing protocol conformance tests still pass, so no encoding violations were exposed.
+
+Verification (XcodeBuildMCP `test_sim`, iPhone 18 Pro, iOS 27.0). The Xcode MCP needed interactive approval, so XcodeBuildMCP was used instead.
+- `DesignSystemTests`, `TestSupportTests`, `GatewayProtocolTests` and `ConversationStoreTests`: 102 passed, 0 failed.
+- `GatewayClientTests`, `ChatCoreTests`, `PersistenceTests` and `SystemIntegrationTests`, which use `FakeGateway`: 105 passed, 0 failed.
+- The full test plan and UI tests were not run.

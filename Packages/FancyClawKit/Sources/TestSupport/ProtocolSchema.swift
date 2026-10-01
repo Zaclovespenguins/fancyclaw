@@ -5,7 +5,8 @@ import GatewayProtocol
 ///
 /// It supports the keywords the generated schema uses for the definitions FancyClaw models: `type`, `const`,
 /// `enum`, `properties`, `required`, `additionalProperties: false`, `patternProperties` (as "open"), `items`,
-/// `anyOf`/`oneOf`, `minLength`/`maxLength` and `minimum`. Unsupported keywords are ignored, so a clean result
+/// `anyOf`, `oneOf` (exactly one branch), `allOf`, `not`, `pattern`, `minLength`/`maxLength`,
+/// `minimum`/`maximum` and `minItems`/`maxItems`. Unsupported keywords are ignored, so a clean result
 /// means "no violation found", not full validation.
 public struct ProtocolSchema: Sendable {
     public let release: String?
@@ -32,13 +33,29 @@ public struct ProtocolSchema: Sendable {
         guard case .object(let rules) = schema else { return [] }
         var problems: [String] = []
 
-        if let branches = (rules["anyOf"] ?? rules["oneOf"])?.arrayValue {
+        if let branches = rules["anyOf"]?.arrayValue {
             let results = branches.map { violations(of: value, against: $0, path: path) }
             if !results.contains(where: \.isEmpty) {
                 // Report the closest branch so failures stay readable.
                 let closest = results.min { $0.count < $1.count } ?? []
                 problems.append("\(path): matches no anyOf branch; closest: \(closest.joined(separator: "; "))")
             }
+        }
+        if let branches = rules["oneOf"]?.arrayValue {
+            let results = branches.map { violations(of: value, against: $0, path: path) }
+            let matches = results.filter(\.isEmpty).count
+            if matches == 0 {
+                let closest = results.min { $0.count < $1.count } ?? []
+                problems.append("\(path): matches no oneOf branch; closest: \(closest.joined(separator: "; "))")
+            } else if matches > 1 {
+                problems.append("\(path): matches \(matches) oneOf branches, expected exactly one")
+            }
+        }
+        for branch in rules["allOf"]?.arrayValue ?? [] {
+            problems += violations(of: value, against: branch, path: path)
+        }
+        if let negated = rules["not"], violations(of: value, against: negated, path: path).isEmpty {
+            problems.append("\(path): matches a schema it must not match")
         }
 
         if let constant = rules["const"], !value.jsonEquals(constant) {
@@ -64,11 +81,24 @@ public struct ProtocolSchema: Sendable {
             if let maximum = rules["maxLength"]?.intValue, string.count > maximum {
                 problems.append("\(path): longer than maxLength \(maximum)")
             }
+            if let pattern = rules["pattern"]?.stringValue,
+               string.range(of: pattern, options: .regularExpression) == nil {
+                problems.append("\(path): does not match pattern \(pattern)")
+            }
         case .integer, .double:
             if let minimum = rules["minimum"]?.doubleValue, let number = value.doubleValue, number < minimum {
                 problems.append("\(path): below minimum \(minimum)")
             }
+            if let maximum = rules["maximum"]?.doubleValue, let number = value.doubleValue, number > maximum {
+                problems.append("\(path): above maximum \(maximum)")
+            }
         case .array(let items):
+            if let minimum = rules["minItems"]?.intValue, items.count < minimum {
+                problems.append("\(path): fewer than minItems \(minimum)")
+            }
+            if let maximum = rules["maxItems"]?.intValue, items.count > maximum {
+                problems.append("\(path): more than maxItems \(maximum)")
+            }
             if let itemSchema = rules["items"] {
                 for (index, item) in items.enumerated() {
                     problems += violations(of: item, against: itemSchema, path: "\(path)[\(index)]")

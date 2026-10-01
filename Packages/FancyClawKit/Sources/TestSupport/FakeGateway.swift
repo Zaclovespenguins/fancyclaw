@@ -17,11 +17,13 @@ public final class FakeGateway: @unchecked Sendable {
         case invalidIdentity
         case oversizedFrame
         case noPort
+        case stopped
     }
 
     private let queue = DispatchQueue(label: "FancyClaw.FakeGateway")
     private let lock = NSLock()
     private var listener: NWListener?
+    private var stopped = false
     private var connections: [NWConnection] = []
     private var replies: [Reply]
     private var requests: [ConnectParams] = []
@@ -100,15 +102,24 @@ public final class FakeGateway: @unchecked Sendable {
         let parameters = NWParameters.tcp
         parameters.defaultProtocolStack.applicationProtocols.insert(options, at: 0)
         let listener = try NWListener(using: parameters, on: .any)
-        self.listener = listener
+        // A stop() that raced ahead of start() must not leave a live listener or a hung continuation.
+        guard lock.withLock({ () -> Bool in
+            guard !stopped else { return false }
+            self.listener = listener
+            return true
+        }) else { throw FakeError.stopped }
         listener.newConnectionHandler = { [weak self] connection in self?.accept(connection) }
         return try await withCheckedThrowingContinuation { continuation in
+            // NWListener can report several states; the continuation may only be resumed once.
+            let once = ResumeOnce(continuation)
+            let resume = { @Sendable (result: Result<URL, Error>) in once.resume(with: result) }
             listener.stateUpdateHandler = { state in
                 switch state {
                 case .ready:
-                    guard let port = listener.port else { continuation.resume(throwing: FakeError.noPort); return }
-                    continuation.resume(returning: URL(string: "ws://127.0.0.1:\(port.rawValue)/")!)
-                case .failed(let error): continuation.resume(throwing: error)
+                    guard let port = listener.port else { resume(.failure(FakeError.noPort)); return }
+                    resume(.success(URL(string: "ws://127.0.0.1:\(port.rawValue)/")!))
+                case .failed(let error): resume(.failure(error))
+                case .cancelled: resume(.failure(FakeError.stopped))
                 default: break
                 }
             }
@@ -125,6 +136,10 @@ public final class FakeGateway: @unchecked Sendable {
     }
 
     public func stop() {
+        let listener = lock.withLock { () -> NWListener? in
+            stopped = true
+            return self.listener
+        }
         listener?.cancel()
         lock.withLock {
             for connection in connections { connection.cancel() }
@@ -179,8 +194,10 @@ public final class FakeGateway: @unchecked Sendable {
             guard let self else { return }
             if let error { self.lock.withLock { self.failures.append(error) }; return }
             guard let data else { return }
+            var requestID: String?
             do {
                 let request = try GatewayCoding.decoder().decode(RequestFrame<JSONValue>.self, from: data)
+                requestID = request.id
                 lock.withLock { rpcRequests.append(request) }
                 if let error = lock.withLock({ rpcErrors[request.method] }) {
                     send(ResponseFrame<JSONValue>(id: request.id, ok: false, error: error), on: connection)
@@ -226,6 +243,8 @@ public final class FakeGateway: @unchecked Sendable {
                         payload: ChatSendResponse(runId: runID, status: .started)), on: connection)
                     Task {
                         try? await Task.sleep(for: .milliseconds(150))
+                        // An abort during the delay removes the run; a real Gateway sends nothing after `aborted`.
+                        guard self.lock.withLock({ self.activeRuns[runID] != nil }) else { return }
                         self.send(GatewayEventFrame(event: .chat(ChatEvent(runId: runID,
                             sessionKey: sessionKey, seq: 1, state: .delta(.init(deltaText: text))))), on: connection)
                         try? await Task.sleep(for: .milliseconds(150))
@@ -257,8 +276,16 @@ public final class FakeGateway: @unchecked Sendable {
                 } else if let payload = lock.withLock({ rpcReplies[request.method] }) {
                     send(ResponseFrame(id: request.id, ok: true, payload: payload), on: connection)
                 }
-                receiveRequest(on: connection)
-            } catch { lock.withLock { failures.append(error) } }
+            } catch {
+                // Keep the connection alive: answer the request when its ID is known, and record the failure.
+                lock.withLock { failures.append(error) }
+                if let requestID {
+                    send(ResponseFrame<JSONValue>(id: requestID, ok: false,
+                        error: .init(code: .invalidRequest, message: "FakeGateway could not handle request: \(error)")),
+                        on: connection)
+                }
+            }
+            receiveRequest(on: connection)
         }
     }
 
@@ -345,5 +372,21 @@ public final class FakeGateway: @unchecked Sendable {
             let context = NWConnection.ContentContext(identifier: "frame", metadata: [metadata])
             connection.send(content: data, contentContext: context, isComplete: true, completion: .contentProcessed { _ in })
         } catch { lock.withLock { failures.append(error) } }
+    }
+}
+
+/// Resumes a continuation at most once, however many listener states arrive.
+private final class ResumeOnce: @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<URL, Error>?
+
+    init(_ continuation: CheckedContinuation<URL, Error>) { self.continuation = continuation }
+
+    func resume(with result: Result<URL, Error>) {
+        let pending = lock.withLock { () -> CheckedContinuation<URL, Error>? in
+            defer { continuation = nil }
+            return continuation
+        }
+        pending?.resume(with: result)
     }
 }

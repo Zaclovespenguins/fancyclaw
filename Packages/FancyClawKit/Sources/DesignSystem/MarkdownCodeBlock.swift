@@ -1,10 +1,31 @@
 import SwiftUI
 import Textual
 
+/// Tracks the transient "Copied" confirmation. `copyCount` advances on every copy so haptics and the reset
+/// timer re-trigger even while the confirmation is still showing.
+struct CopyFeedback: Equatable {
+    static let resetDelay: Duration = .seconds(2)
+
+    private(set) var copyCount = 0
+    private(set) var isCopied = false
+
+    mutating func recordCopy() {
+        copyCount += 1
+        isCopied = true
+    }
+
+    /// Clears the confirmation unless a newer copy has happened since `copy`.
+    mutating func reset(afterCopy copy: Int) {
+        if copy == copyCount { isCopied = false }
+    }
+}
+
 struct MarkdownCodeBlock: View {
     let configuration: StructuredText.CodeBlockStyleConfiguration
-    @State private var copied = false
+    @State private var feedback = CopyFeedback()
     @AppStorage("hapticsEnabled") private var hapticsEnabled = true
+
+    private var copied: Bool { feedback.isCopied }
 
     var body: some View {
         // The outer Overflow excludes the entire card from the document selection overlay.
@@ -44,7 +65,14 @@ struct MarkdownCodeBlock: View {
             .frame(width: state.containerWidth, alignment: .leading)
         }
         .textual.textSelection(.disabled)
-        .sensoryFeedback(.success, trigger: copied) { _, value in hapticsEnabled && value }
+        .sensoryFeedback(.success, trigger: feedback.copyCount) { _, _ in hapticsEnabled }
+        // Restarts on every copy, so rapid taps keep the confirmation until two seconds after the last one.
+        .task(id: feedback.copyCount) {
+            let copy = feedback.copyCount
+            guard feedback.isCopied else { return }
+            try? await Task.sleep(for: CopyFeedback.resetDelay)
+            if !Task.isCancelled { feedback.reset(afterCopy: copy) }
+        }
         .clipShape(.rect(cornerRadius: 14))
         .overlay {
             RoundedRectangle(cornerRadius: 14).stroke(.secondary.opacity(0.2))
@@ -54,6 +82,6 @@ struct MarkdownCodeBlock: View {
 
     private func copy() {
         configuration.codeBlock.copyToPasteboard()
-        copied = true
+        feedback.recordCopy()
     }
 }
