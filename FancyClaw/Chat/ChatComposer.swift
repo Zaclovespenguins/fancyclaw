@@ -1,6 +1,7 @@
 import AVFoundation
 import ChatCore
 import GatewayProtocol
+import OSLog
 import PhotosUI
 import SwiftUI
 import UniformTypeIdentifiers
@@ -17,6 +18,8 @@ struct ChatComposer: View {
     @State private var sentCount = 0
     @State private var stopCount = 0
     @State private var draft = ""
+    @FocusState private var isMessageFocused: Bool
+    private static let focusLogger = Logger(subsystem: "FancyClaw", category: "ComposerFocus")
     @State private var selectedPhotos: [PhotosPickerItem] = []
     @State private var showingPhotos = false
     @State private var showingFiles = false
@@ -39,13 +42,14 @@ struct ChatComposer: View {
             if isPreparing {
                 HStack { ProgressView(); Text("Preparing attachment…").font(.subheadline) }
             }
-            HStack(alignment: .bottom, spacing: 12) {
+            HStack(alignment: .bottom, spacing: 6) {
                 Menu {
                     Button("Photo Library", systemImage: "photo.on.rectangle") { showingPhotos = true }
                     Button("Take Photo", systemImage: "camera") { openCamera() }
                     Button("Choose File", systemImage: "doc") { showingFiles = true }
                 } label: {
                     Image(systemName: "plus")
+                        .font(.system(size: 16, weight: .medium))
                         .frame(minWidth: 44, minHeight: 44)
                         .contentShape(.rect)
                 }
@@ -55,6 +59,8 @@ struct ChatComposer: View {
 
                 TextField("Message FancyClaw", text: $draft, axis: .vertical)
                     .lineLimit(1...5)
+                    .focused($isMessageFocused)
+                    .frame(minHeight: 44)
                     .disabled(isSubmitting)
                     .submitLabel(.send)
                     .onSubmit(submit)
@@ -71,10 +77,19 @@ struct ChatComposer: View {
                     .accessibilityInputLabels(isStreaming ? ["Stop response", "Stop generating"] : ["Send message"])
             }
         }
-        .padding(.leading, 8)
-        .padding(.trailing, 8)
-        .padding(.vertical, 8)
-        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 28))
+        .padding(.horizontal, 4)
+        .padding(.vertical, 4)
+        .background {
+            // The background receives padding and gap taps without taking taps from controls.
+            Color.clear
+                .contentShape(.rect(cornerRadius: 28))
+                .onTapGesture {
+                    guard !isSubmitting else { return }
+                    Self.focusLogger.debug("Composer background tapped; requesting focus")
+                    isMessageFocused = true
+                }
+        }
+        .glassEffect(.regular, in: .rect(cornerRadius: 28))
         .photosPicker(isPresented: $showingPhotos, selection: $selectedPhotos, matching: .images)
         .onChange(of: selectedPhotos) { _, photos in
             guard !photos.isEmpty else { return }
@@ -101,6 +116,19 @@ struct ChatComposer: View {
         .alert("Attachment unavailable", isPresented: hasAttachmentError) {
             Button("OK") { attachmentError = nil }
         } message: { Text(attachmentError ?? "") }
+        .onChange(of: isMessageFocused) { _, focused in
+            Self.focusLogger.debug("Message field focused: \(focused)")
+        }
+        .task {
+            for await _ in NotificationCenter.default.notifications(named: UIResponder.keyboardWillShowNotification) {
+                Self.focusLogger.debug("Keyboard will show")
+            }
+        }
+        .task {
+            for await _ in NotificationCenter.default.notifications(named: UIResponder.keyboardDidShowNotification) {
+                Self.focusLogger.debug("Keyboard did show")
+            }
+        }
         .onDisappear { importTask?.cancel() }
         .sensoryFeedback(.success, trigger: sentCount) { _, _ in hapticsEnabled }
         .sensoryFeedback(.impact(weight: .light), trigger: stopCount) { _, _ in hapticsEnabled }
@@ -203,10 +231,12 @@ private struct ChatComposerButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.headline)
+            .font(.system(size: 16, weight: .semibold))
             .foregroundStyle(Color(uiColor: .systemBackground))
-            .frame(width: 44, height: 44)
+            .frame(width: 32, height: 32)
             .background(role == .send ? Color.accentColor : Color.primary, in: Circle())
+            .frame(width: 44, height: 44)
+            .contentShape(.rect)
             .opacity(!isEnabled ? 0.4 : configuration.isPressed ? 0.78 : 1)
             .contentTransition(reduceMotion ? .identity : .symbolEffect(.replace))
     }
