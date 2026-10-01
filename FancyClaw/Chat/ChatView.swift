@@ -1,4 +1,5 @@
 import ChatCore
+import GatewayClient
 import GatewayProtocol
 import DesignSystem
 import SwiftUI
@@ -181,9 +182,74 @@ struct ChatView: View {
     }
 }
 
-#Preview {
+#Preview("Conversation thread") {
+    @Previewable @State var store: ConversationStore = {
+        // An unconnected, ephemeral identity keeps the preview independent of saved profiles.
+        let connection = GatewayConnection(identity: .generate())
+        let store = ConversationStore(connection: connection)
+        store.reconcileHistory([
+            ChatMessage(role: .user, content: [
+                .text("Can you help me plan the next update for FancyClaw?")
+            ], metadata: .init(id: "preview-user-1")),
+            ChatMessage(role: .assistant, content: [
+                .text("""
+                Absolutely. I'd focus on three things:
+
+                - **Connection recovery** so a dropped signal never loses a draft.
+                - **Rich replies** with readable code, tables, and tool results.
+                - **Accessibility** so the whole conversation works at larger text sizes.
+
+                Which one would you like to start with?
+                """)
+            ], metadata: .init(id: "preview-assistant-1")),
+            ChatMessage(role: .user, content: [
+                .text("Let's start with connection recovery. Check the notes I attached."),
+                .media(.init(kind: .file, mimeType: "text/plain", fileName: "recovery-notes.txt", sizeBytes: 2048))
+            ], metadata: .init(id: "preview-user-2")),
+            ChatMessage(role: .assistant, content: [
+                .toolCall(.init(id: "preview-read-notes", name: "read_file",
+                               arguments: .object(["path": .string("recovery-notes.txt")]))),
+                .text("I'll read the notes and turn them into a short checklist.")
+            ], metadata: .init(id: "preview-assistant-2")),
+            ChatMessage(role: .toolResult, content: [
+                .text("Keep drafts per chat. Retry with the original message key. Refresh history after reconnecting.")
+            ], toolCallId: "preview-read-notes", toolName: "read_file",
+               metadata: .init(id: "preview-tool-result")),
+            ChatMessage(role: .assistant, content: [
+                .text("""
+                Here's the checklist from your notes:
+
+                | Situation | Expected behavior |
+                | --- | --- |
+                | Signal drops | Keep the draft |
+                | Send is retried | Reuse the message key |
+                | Connection returns | Refresh chat history |
+
+                > The Gateway remains the source of truth.
+                """)
+            ], metadata: .init(id: "preview-assistant-3")),
+            ChatMessage(role: .user, content: [
+                .text("Show me what the retry call would look like in Swift.")
+            ], metadata: .init(id: "preview-user-3")),
+            ChatMessage(role: .assistant, content: [
+                .text("""
+                Reuse the original key so a retry doesn't create a second message:
+
+                ```swift
+                await conversation.retry(
+                    idempotencyKey: originalMessageKey
+                )
+                ```
+
+                The draft stays available while the connection recovers. Once history confirms the message, its pending send can be cleared.
+                """)
+            ], metadata: .init(id: "preview-assistant-4"))
+        ])
+        return store
+    }()
+
     NavigationStack {
-        ContentUnavailableView("Chat preview", systemImage: "bubble.left")
-            .navigationTitle("FancyClaw")
+        ChatView(store: store)
     }
+    .onDisappear { store.stopListening() }
 }

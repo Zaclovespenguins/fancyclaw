@@ -6,6 +6,8 @@ A SwiftUI iOS operator client for a single OpenClaw Gateway. `PLAN.md` holds the
 
 `.claude/plan-deviations.md` logs implementation departures, settled questions, and verification results. Read it alongside the plan; later entries supersede earlier decisions. When a slice departs from the plan, add an entry. Some introductory/scaffold descriptions in `PLAN.md` are historical; check the implementation and deviations before treating them as current status.
 
+`debugging/` holds investigation notes with concise, descriptive filenames and titles (for example, `session-event-decoding.md`, titled “Session event decoding failure”). Each note starts with its title, date, and status, then has **Summary** (symptoms, evidence, and cause; distinguish observations from inference), **Suggested triage** (next diagnostic and verification steps), and **Actual fix**. Leave **Actual fix** blank until the agent that fixes the issue fills it in with a short description of the implemented correction and verification results. Keep proposed fixes in **Suggested triage** and update the note's status once verified. Read relevant notes before investigating a matching issue.
+
 ## Current status (2026-09-30)
 
 - Slices 0–11 are implemented: project/protocol, identity/handshake, onboarding, connection recovery, streaming chat, history/session management/private cache, rich output, attachments, exec approvals, system integration, and polish.
@@ -16,7 +18,7 @@ A SwiftUI iOS operator client for a single OpenClaw Gateway. `PLAN.md` holds the
 
 ## Layout
 
-- `FancyClaw.xcodeproj`: app (`FancyClaw/`), WidgetKit extension (`FancyClawWidgets/`), UI tests (`FancyClawUITests/`). It uses folder-synchronized groups, so new files in those folders join their target automatically. Don't edit `project.pbxproj` per file or re-run scaffolding. Use `projectPath`, not a separate workspace.
+- `FancyClaw.xcodeproj`: app (`FancyClaw/`), WidgetKit extension (`FancyClawWidgets/`), UI tests (`FancyClawUITests/`). It uses folder-synchronized groups, so new files in those folders join their target automatically. Don't edit `project.pbxproj` per file or re-run scaffolding. Open this project directly, not a separate workspace.
 - `FancyClaw/AppModel.swift`: app routing, connection lifecycle, per-session conversation stores, cache, approvals, and intent/activity coordination. `FancyClaw/SystemIntegration/` owns shortcut phrases and the concrete ActivityKit driver.
 - `Packages/FancyClawKit`: iOS-only local package (Swift tools 6.2, Swift 6 language mode) holding testable logic; module responsibilities are listed below.
 - `Config/`: `Shared.xcconfig` (team, bundle-ID prefix, versions, deployment target), Info.plist fragments merged into generated plists, and empty entitlement files. This synchronized group belongs to no target; don't add it to resource membership.
@@ -52,12 +54,15 @@ A SwiftUI iOS operator client for a single OpenClaw Gateway. `PLAN.md` holds the
 - Live Activities update locally, with no push/background WebSocket guarantee. Background/disconnect shows uncertainty; foreground catch-up reconciles runs. Activity state excludes transcript text, tool commands, and credentials.
 - Exec approvals are connection-wide and transient, with no recovery RPC for requests missed while disconnected. Session deletion archives first, then sends `archivedOnly: true`, as required for `operator.write` in the pinned Gateway release.
 
-## Build & test (XcodeBuildMCP)
+## Build, test & debug (official Xcode MCP server)
 
-1. `session_show_defaults`. If unset or pointing at another checkout, run `session_set_defaults` with this checkout's absolute `projectPath`, scheme `FancyClaw`, simulator `iPhone 18 Pro` (iOS 27.0), configuration `Debug`, and bundleId `com.zacisnotacompany.fancyclaw`. Keep `persist: false`; `.xcodebuildmcp/config.yaml` tracks workflows, not absolute checkout paths or simulator UDIDs.
-2. `build_sim` builds the app and the embedded widget.
-3. `test_sim` runs the whole test plan; allow several minutes for UI/system tests. The MCP summary can undercount Swift Testing results, so check the `✔ Test run with …` lines and UI totals in the build log.
-4. `build_run_sim`, then `screenshot` / `snapshot_ui` for visual checks. UI slices also require light/dark, Dynamic Type, and accessibility checks appropriate to the change.
+Use Apple's official Xcode MCP server for builds, tests, device interaction, debugger commands, and console logs.
+
+1. Use `XcodeListWorkspaces` to find this checkout's open project and pass its `workspaceIdentifier` to subsequent calls. If access needs approval or the project is not open, use `XcodeOpenWorkspace` with the absolute path to `FancyClaw.xcodeproj`. For logs from an app already running in the Xcode UI, select its window-tab workspace rather than a separate background workspace.
+2. Confirm scheme `FancyClaw`, Debug configuration, and simulator `iPhone 18 Pro` (iOS 27.0) for automated checks. Use `XcodeListSchemes` / `XcodeListRunDestinations` and their switch tools as needed. Use a physical iPhone when the task calls for device verification.
+3. `BuildProject` builds the app and embedded extension. `RunAllTests` runs the active scheme's full test plan; confirm `FancyClaw` is the active test plan and allow several minutes for UI/system tests. Inspect reported counts and returned logs, including Swift Testing and UI totals.
+4. Use `RunProject` to build and launch; set `attachDebugger: true` when debugging. `GetConsoleOutput` reads stdout, stderr, and OSLog from the current or specified launch session. Check its session state and reference so retained logs from an expired session are not mistaken for current output. `InvokeDebuggerCommand` sends LLDB commands to an attached debugger.
+5. Use the `DeviceInteraction` tools for screenshots and UI hierarchy checks; end interaction sessions when finished. UI slices also require light/dark, Dynamic Type, and accessibility checks appropriate to the change.
 
 The package imports iOS frameworks; host `swift test` is not the full-suite workflow. Run package tests through the simulator test plan.
 
