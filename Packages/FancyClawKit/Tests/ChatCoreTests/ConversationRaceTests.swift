@@ -167,6 +167,55 @@ struct ConversationRaceTests {
         #expect(store.messages.filter { $0.role == .user }.map(\.text) == ["delivered", "lost"])
         await connection.disconnect()
     }
+
+    @Test func staleSnapshotDoesNotOverwriteLiveRunState() async throws {
+        let fake = try gateway()
+        let key = SessionKey.main.rawValue
+        fake.reply(to: "chat.history", withSequence: [try JSONValue(encoding: ChatHistoryPage(
+            sessionKey: key, sessionId: "one",
+            messages: [ChatMessage(role: .user, content: [.text("earlier")], metadata: .init(id: "u1"))],
+            sessionInfo: .init(key: key, hasActiveRun: false), hasMore: false, deltaCursor: "c"))])
+        defer { fake.stop() }
+        let connection = GatewayConnection(identity: .generate())
+        _ = try await connection.connect(to: fake.start(), token: "test-token")
+        let store = ConversationStore(connection: connection, streamingInterval: .zero)
+        var snapshots: [Set<String>] = []
+        store.onRunSnapshot = { snapshots.append($0) }
+        let refresh = Task { await store.refreshHistory() }
+        await Task.yield()
+        // A run starts after the snapshot was requested; this bumps the revision like a send does.
+        store.receive(chat(store, run: "live", seq: 1, .status(.init(phase: nil))))
+        store.receive(chat(store, run: "live", seq: 2, .delta(.init(deltaText: "typing"))))
+        await refresh.value
+        #expect(store.messages.contains { $0.id == "u1" })
+        #expect(store.isStreaming)
+        #expect(store.messages.last?.isStreaming == true)
+        #expect(!snapshots.contains([]))
+        await connection.disconnect()
+    }
+
+    @Test func gatewayRejectedSendIsNotAutoResent() async throws {
+        let fake = try gateway()
+        fake.fail("chat.send", with: .init(code: .invalidRequest, message: "rejected"))
+        let key = SessionKey.main.rawValue
+        fake.reply(to: "chat.history", withSequence: [
+            try JSONValue(encoding: ChatHistoryPage(sessionKey: key, sessionId: "one", messages: [], hasMore: false, deltaCursor: "c")),
+            try JSONValue(encoding: ChatHistoryPage(sessionKey: key, sessionId: "one", messages: [], hasMore: false, deltaCursor: "c"))])
+        defer { fake.stop() }
+        let connection = GatewayConnection(identity: .generate())
+        _ = try await connection.connect(to: fake.start(), token: "test-token")
+        let store = ConversationStore(connection: connection, streamingInterval: .zero)
+        await store.send("nope")
+        #expect(store.messages.first?.deliveryFailed == true)
+        await store.refreshHistory()
+        await store.refreshHistory()
+        #expect(fake.receivedRequests.filter { $0.method == "chat.send" }.count == 1)
+        #expect(store.messages.first?.deliveryFailed == true)
+        let id = try #require(sendKey(fake, at: 0))
+        await store.retry(idempotencyKey: id)
+        #expect(fake.receivedRequests.filter { $0.method == "chat.send" }.count == 2)
+        await connection.disconnect()
+    }
 }
 
 private extension Array {

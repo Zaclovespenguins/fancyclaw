@@ -39,6 +39,8 @@ public final class ConversationStore {
     private var isAsking = false
     private var isStarting = false
     private var inFlightKeys: Set<String> = []
+    /// Keys the Gateway answered and rejected; manual retry only, never resent automatically.
+    private var rejectedKeys: Set<String> = []
     private var startGeneration = 0
 
     private struct RunState {
@@ -88,7 +90,8 @@ public final class ConversationStore {
                     if let nextOffset { self.nextOffset = nextOffset + canonicalHistory.count - oldCount }
                     self.deltaCursor = delta.deltaCursor
                     reconcileHistory(canonicalHistory)
-                    updateRunState(delta.sessionInfo)
+                    // A snapshot that raced live events must not overwrite the run state they established.
+                    if revision == transcriptRevision { updateRunState(delta.sessionInfo) }
                     errorMessage = nil
                     try persistHistory()
                     scheduleFollowUpIfStale(since: revision)
@@ -99,7 +102,7 @@ public final class ConversationStore {
                 params: ChatHistoryParams(sessionKey: sessionKey, limit: 100), returning: ChatHistoryPage.self)
             guard !invalidated else { return false }
             errorMessage = nil
-            applyPage(page)
+            applyPage(page, appliesRunState: revision == transcriptRevision)
             try persistHistory()
             scheduleFollowUpIfStale(since: revision)
             return true
@@ -148,13 +151,14 @@ public final class ConversationStore {
         }
     }
 
-    private func applyPage(_ page: ChatHistoryPage) {
+    private func applyPage(_ page: ChatHistoryPage, appliesRunState: Bool = true) {
         if let old = sessionID, let new = page.sessionId, old != new {
             throttle.cancel()
             pendingAssistantMessages.removeAll()
             lastToolSequence.removeAll()
             messages = []
             outbox.removeAll()
+            rejectedKeys.removeAll()
             runs.removeAll()
             runIDsByIdempotencyKey.removeAll()
             assistantEntryIDsByRunID.removeAll()
@@ -166,7 +170,7 @@ public final class ConversationStore {
         hasMoreHistory = page.hasMore == true && page.nextOffset != nil
         nextOffset = page.nextOffset
         reconcileHistory(page.messages)
-        updateRunState(page.sessionInfo)
+        if appliesRunState { updateRunState(page.sessionInfo) }
     }
 
     private func updateRunState(_ info: ChatSessionInfo?) {
@@ -312,7 +316,7 @@ public final class ConversationStore {
     public func retryFailedSends() async {
         let keys = messages.filter(\.deliveryFailed).compactMap { row in
             outbox.first(where: { $0.value.messageID == row.id })?.key
-        }
+        }.filter { !rejectedKeys.contains($0) }
         for key in keys { await retry(idempotencyKey: key) }
     }
 
@@ -382,7 +386,7 @@ public final class ConversationStore {
             canonical.append(message)
         }
         messages = canonical
-        for key in confirmedKeys { outbox.removeValue(forKey: key) }
+        for key in confirmedKeys { outbox.removeValue(forKey: key); rejectedKeys.remove(key) }
     }
 
     /// Public for deterministic reducer tests and callers that already own an event stream.
@@ -493,6 +497,7 @@ public final class ConversationStore {
             }
         } catch {
             errorMessage = error.localizedDescription
+            if error is GatewayErrorShape { rejectedKeys.insert(idempotencyKey) } else { rejectedKeys.remove(idempotencyKey) }
             setDeliveryFailed(true, messageID: messageID)
             isStreaming = false
             if activeRunID == idempotencyKey { activeRunID = nil }
