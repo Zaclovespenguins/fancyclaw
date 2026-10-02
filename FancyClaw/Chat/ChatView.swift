@@ -119,7 +119,6 @@ struct ChatView: View {
                     .padding(.horizontal)
                     .padding(.bottom, 8)
             }
-            .background(.bar)
         }
         .navigationTitle(sessions?.sessions.first(where: { $0.key == store.sessionKey })?.title ?? "FancyClaw")
         .navigationBarTitleDisplayMode(.inline)
