@@ -41,7 +41,10 @@ final class PolishTests: XCTestCase {
     @MainActor
     func testLargeTextDarkMode() throws {
         let app = launch("-DemoApprovals", largeDark: true)
-        XCTAssertTrue(app.buttons["approval.allow-once.demo-approval"].waitForExistence(timeout: 10))
+        let approve = app.buttons["approval.allow-once.demo-approval"]
+        XCTAssertTrue(approve.waitForExistence(timeout: 10))
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true"), object: approve)
+        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 10), .completed)
         try audit(app)
         capture(app, "Approval — dark XXL")
         app.buttons["approval.allow-once.demo-approval"].tap()

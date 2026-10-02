@@ -30,7 +30,7 @@ struct AttachmentTray: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(attachment.fileName)
                                 .foregroundStyle(theme.textPrimary.color)
-                                .font(.subheadline)
+                                .font(.subheadline.weight(.semibold))
                                 .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
                             Text(Int64(attachment.data.count), format: .byteCount(style: .file))
                                 .font(.caption)

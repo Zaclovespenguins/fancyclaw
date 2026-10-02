@@ -40,78 +40,86 @@ struct ChatView: View {
     private var sessionApprovals: [ConversationApproval] { approvals?.approvals(for: store.sessionKey) ?? [] }
 
     var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 18) {
-                if store.hasMoreHistory {
-                    Button("Load older messages") { loadOlder() }
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(theme.accentText.color)
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                        .disabled(store.isLoadingHistory)
-                        .accessibilityIdentifier("chat.older")
-                }
-                if store.messages.isEmpty && sessionApprovals.isEmpty {
-                    emptyState
-                } else {
-                    ForEach(store.messages) { message in
-                        ChatMessageRow(message: message, gatewayBaseURL: store.gatewayBaseURL, loadImage: { [store] media in
-                            try await store.imageData(media)
-                        }, loadFile: { [store] media in
-                            try await store.fileData(media)
-                        }, onRetry: { [store, id = message.id] in
-                            Task { await store.retry(messageID: id) }
-                        })
-                            .id(message.id)
-                    }
-
-                    if store.isStreaming,
-                       store.messages.last(where: { $0.role == .assistant })?.isStreaming != true {
-                        ChatThinkingIndicator()
-                    }
-                }
-                if let approvals {
-                    ForEach(sessionApprovals) { approval in
-                        ApprovalCard(approval: approval, store: approvals, isConnected: connectionStatus == "Connected")
-                            .id("approval:\(approval.id)")
-                    }
-                }
-            }
-            .scrollTargetLayout()
-            .padding(.horizontal, AppTheme.Metrics.screenPadding)
-            .padding(.top, 8)
-            .padding(.bottom, 12)
-        }
-        .scrollPosition($scrollPosition)
-        .defaultScrollAnchor(.bottom)
-        .accessibilityIdentifier("chat.transcript")
-        // Flat theme base: the ambient glow behind transcript text made the accessibility audit's contrast fail.
-        .background { theme.bg.color.ignoresSafeArea() }
-        .onScrollPhaseChange { _, phase in
-            // A person's own scrolling takes over from the approval Review focus.
-            if phase == .interacting { isFocusingApproval = false }
-        }
-        .onScrollGeometryChange(for: Bool.self) { geometry in
-            geometry.contentSize.height <= geometry.containerSize.height
-                || geometry.contentSize.height - geometry.visibleRect.maxY <= 96
-        } action: { _, isAtBottom in
-            if !isFocusingApproval { isFollowingLatest = isAtBottom }
-        }
-        .onScrollGeometryChange(for: Bool.self) { geometry in
-            geometry.visibleRect.minY <= 20
-        } action: { previous, atTop in
-            if atTop && !previous && !isFocusingApproval { loadOlder() }
-        }
-        .onChange(of: store.messages.count) { scrollToLatest() }
-        .onChange(of: store.messages.last?.text) { scrollToLatest() }
-        .onChange(of: approvals?.approvals.count) { scrollToLatest() }
-        .safeAreaInset(edge: .top, spacing: 0) {
+        VStack(spacing: 0) {
             ChatTopBar(store: store, sessions: sessions, onNewChat: onNewChat)
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 18) {
+                    if store.hasMoreHistory {
+                        Button("Load older messages") { loadOlder() }
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(theme.accentText.color)
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                            .disabled(store.isLoadingHistory)
+                            .accessibilityIdentifier("chat.older")
+                    }
+                    if store.messages.isEmpty && sessionApprovals.isEmpty {
+                        emptyState
+                    } else {
+                        ForEach(store.messages) { message in
+                            ChatMessageRow(message: message, gatewayBaseURL: store.gatewayBaseURL, loadImage: { [store] media in
+                                try await store.imageData(media)
+                            }, loadFile: { [store] media in
+                                try await store.fileData(media)
+                            }, onRetry: { [store, id = message.id] in
+                                Task { await store.retry(messageID: id) }
+                            })
+                                .id(message.id)
+                        }
+
+                        if store.isStreaming,
+                           store.messages.last(where: { $0.role == .assistant })?.isStreaming != true {
+                            ChatThinkingIndicator()
+                        }
+                    }
+                    if let approvals {
+                        ForEach(sessionApprovals) { approval in
+                            ApprovalCard(approval: approval, store: approvals, isConnected: connectionStatus == "Connected")
+                                .id("approval:\(approval.id)")
+                        }
+                    }
+                }
+                .scrollTargetLayout()
+                .padding(.horizontal, AppTheme.Metrics.screenPadding)
+                .padding(.top, 8)
+                .padding(.bottom, 12)
+            }
+            // Clip the scrolling viewport, including its safe-area overflow, so offscreen text does not remain
+            // exposed beneath the opaque status/header area and floating composer.
+            .clipped()
+            .scrollPosition($scrollPosition)
+            .defaultScrollAnchor(.bottom)
+            .accessibilityIdentifier("chat.transcript")
+            // Flat theme base: the ambient glow behind transcript text made the accessibility audit's contrast fail.
+            .background { theme.bg.color.ignoresSafeArea() }
+            .onScrollPhaseChange { _, phase in
+                // A person's own scrolling takes over from the approval Review focus.
+                if phase == .interacting { isFocusingApproval = false }
+            }
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                geometry.contentSize.height <= geometry.containerSize.height
+                    || geometry.contentSize.height - geometry.visibleRect.maxY <= 96
+            } action: { _, isAtBottom in
+                if !isFocusingApproval { isFollowingLatest = isAtBottom }
+            }
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                geometry.visibleRect.minY <= 20
+            } action: { previous, atTop in
+                if atTop && !previous && !isFocusingApproval { loadOlder() }
+            }
+            .onChange(of: store.messages.count) { scrollToLatest() }
+            .onChange(of: store.messages.last?.text) { scrollToLatest() }
+            .onChange(of: approvals?.approvals.count) { scrollToLatest() }
         }
+        .background { theme.bg.color.ignoresSafeArea() }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 8) {
                 if let errorMessage = store.errorMessage {
                     ErrorBanner(message: errorMessage) { store.errorMessage = nil }
                         .accessibilityIdentifier("chat.error")
+                }
+                if let sessions, let errorMessage = sessions.errorMessage {
+                    ErrorBanner(message: errorMessage) { sessions.errorMessage = nil }
+                        .accessibilityIdentifier("chat.sessionError")
                 }
 
                 ChatComposer(isStreaming: store.isStreaming, attachments: $store.draftAttachments,

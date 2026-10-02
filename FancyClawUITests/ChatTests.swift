@@ -125,9 +125,13 @@ final class ChatTests: XCTestCase {
         let title = app.buttons["chat.agentModel"]
         XCTAssertTrue(title.waitForExistence(timeout: 5))
         title.tap()
-        // The demo Gateway lists no agents or models, so the menu may be empty; it must still open and dismiss.
-        XCTAssertEqual(title.value as? String, "OpenClaw")
-        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        let model = app.buttons["Fake model"]
+        XCTAssertTrue(model.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Helper"].exists)
+        model.tap()
+        let modelSelected = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "value CONTAINS %@", "test/fake-model"), object: title)
+        XCTAssertEqual(XCTWaiter.wait(for: [modelSelected], timeout: 5), .completed)
 
         // The assistant's file shows name, size and type, with a download button.
         let card = app.descendants(matching: .any)["chat.file.gateway-summary.md"]
@@ -138,5 +142,39 @@ final class ChatTests: XCTestCase {
         shot.name = "Chat — file card"
         shot.lifetime = .keepAlways
         add(shot)
+
+        // Agent choice creates a separate chat and reflects the selected Gateway agent in the title.
+        title.tap()
+        let helper = app.buttons["Helper"]
+        XCTAssertTrue(helper.waitForExistence(timeout: 5))
+        helper.tap()
+        let newTitle = app.buttons["chat.agentModel"].firstMatch
+        let helperSelected = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "value CONTAINS %@", "Helper"), object: newTitle)
+        XCTAssertEqual(XCTWaiter.wait(for: [helperSelected], timeout: 10), .completed)
+        XCTAssertTrue(app.staticTexts["Start a conversation"].exists)
+    }
+
+    @MainActor
+    func testSessionActionFailureShowsDismissibleError() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-DemoSessionActionError"]
+        app.launch()
+        let title = app.buttons["chat.agentModel"]
+        XCTAssertTrue(title.waitForExistence(timeout: 10))
+        title.tap()
+        let model = app.buttons["Fake model"]
+        XCTAssertTrue(model.waitForExistence(timeout: 5))
+        model.tap()
+        let message = app.staticTexts["The demo Gateway rejected the chat change."]
+        XCTAssertTrue(message.waitForExistence(timeout: 5))
+        XCTAssertFalse((title.value as? String)?.contains("test/fake-model") == true)
+        app.buttons["Dismiss error"].tap()
+        XCTAssertFalse(message.exists)
+        // A later failure is reported again after dismissal, without silently changing the selected model.
+        title.tap()
+        XCTAssertTrue(model.waitForExistence(timeout: 5))
+        model.tap()
+        XCTAssertTrue(message.waitForExistence(timeout: 5))
     }
 }

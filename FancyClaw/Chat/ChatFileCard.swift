@@ -12,10 +12,7 @@ struct ChatFileCard: View {
 
     @Environment(\.appTheme) private var theme
     @AppStorage("hapticsEnabled") private var hapticsEnabled = true
-    @State private var isDownloading = false
-    @State private var errorText: String?
-    @State private var previewURL: URL?
-    @State private var failureCount = 0
+    @State private var download = TemporaryMediaDownload()
 
     private var canDownload: Bool { media.url != nil || media.artifactId != nil }
     private var name: String { media.fileName ?? "Attachment" }
@@ -32,19 +29,20 @@ struct ChatFileCard: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(theme.textPrimary.color)
                     .fixedSize(horizontal: false, vertical: true)
-                let detail = errorText ?? media.fileDetail
+                let detail = download.errorMessage ?? media.fileDetail
                 if !detail.isEmpty {
                     Text(detail)
                         .font(.footnote)
-                        .foregroundStyle(errorText == nil ? theme.textSecondary.color : theme.danger.color)
+                        .foregroundStyle(download.errorMessage == nil ? theme.textSecondary.color : theme.danger.color)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityElement(children: .combine)
             if canDownload {
-                Button(action: download) {
+                Button { download.start(media: media, load: load) } label: {
                     Group {
-                        if isDownloading {
+                        if download.isDownloading {
                             ProgressView()
                         } else {
                             Image(systemName: "arrow.down.to.line")
@@ -57,7 +55,7 @@ struct ChatFileCard: View {
                     .contentShape(.circle)
                 }
                 .buttonStyle(PressScale())
-                .disabled(isDownloading)
+                .disabled(download.isDownloading)
                 .accessibilityLabel("Download \(name)")
                 .accessibilityIdentifier("chat.file.download")
             }
@@ -67,45 +65,8 @@ struct ChatFileCard: View {
         .surface(in: .rect(cornerRadius: 20), opacity: 0.07)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("chat.file.\(name)")
-        .sensoryFeedback(.error, trigger: failureCount) { _, _ in hapticsEnabled }
-        .quickLookPreview($previewURL)
-        .onChange(of: previewURL) { old, new in
-            // Nothing is kept once the preview closes.
-            if new == nil, let old { TemporaryDownload.remove(old) }
-        }
-        .onDisappear { if let previewURL { TemporaryDownload.remove(previewURL) } }
-    }
-
-    private func download() {
-        guard !isDownloading else { return }
-        isDownloading = true
-        errorText = nil
-        Task {
-            defer { isDownloading = false }
-            do {
-                let data = try await load(media)
-                previewURL = try TemporaryDownload.write(data, named: media.safeFileName)
-            } catch is CancellationError {
-            } catch {
-                errorText = "Download failed. Try again."
-                failureCount += 1
-            }
-        }
-    }
-}
-
-/// Temporary download files, each in its own directory so the whole directory can be removed afterwards.
-private enum TemporaryDownload {
-    static func write(_ data: Data, named name: String) throws -> URL {
-        let directory = FileManager.default.temporaryDirectory.appending(path: "chat-download-\(UUID().uuidString)", directoryHint: .isDirectory)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let url = directory.appending(path: name, directoryHint: .notDirectory)
-        do { try data.write(to: url, options: [.completeFileProtection]) }
-        catch { try? FileManager.default.removeItem(at: directory); throw error }
-        return url
-    }
-
-    static func remove(_ url: URL) {
-        try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
+        .sensoryFeedback(.error, trigger: download.failureCount) { _, _ in hapticsEnabled }
+        .quickLookPreview($download.previewURL)
+        .onDisappear { download.cancel() }
     }
 }

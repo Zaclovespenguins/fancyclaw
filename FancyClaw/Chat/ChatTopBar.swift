@@ -11,6 +11,7 @@ struct ChatTopBar: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.appTheme) private var theme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .body) private var buttonSize = 44
     @State private var isRenaming = false
     @State private var newLabel = ""
@@ -34,8 +35,11 @@ struct ChatTopBar: View {
             .accessibilityLabel("Back")
             .accessibilityIdentifier("chat.back")
 
-            titleMenu
-                .frame(maxWidth: .infinity)
+            VStack(spacing: 2) {
+                AgentAvatar(name: agentName, accessibilityLabel: agentName ?? "Assistant")
+                titleMenu
+            }
+            .frame(maxWidth: .infinity)
 
             moreMenu
         }
@@ -44,8 +48,8 @@ struct ChatTopBar: View {
         .background(alignment: .top) {
             // Solid under the buttons, then fading out below them, so scrolled text never collides with the title.
             VStack(spacing: 0) {
-                theme.bg.color.opacity(0.97)
-                LinearGradient(colors: [theme.bg.color.opacity(0.97), theme.bg.color.opacity(0)],
+                theme.bg.color
+                LinearGradient(colors: [theme.bg.color, theme.bg.color.opacity(0)],
                                startPoint: .top, endPoint: .bottom)
                     .frame(height: 28)
             }
@@ -84,29 +88,29 @@ struct ChatTopBar: View {
 
     @ViewBuilder
     private var titleMenu: some View {
-        let label = VStack(spacing: 2) {
-            AgentAvatar(name: agentName)
-            HStack(spacing: 4) {
-                Text(title)
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(theme.textPrimary.color)
-                    .lineLimit(1)
-                if sessions != nil {
-                    Image(systemName: "chevron.down")
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(theme.textSecondary.color)
-                        .accessibilityHidden(true)
-                }
+        let label = HStack(spacing: 4) {
+            Text(title)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(theme.textPrimary.color)
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
+                .fixedSize(horizontal: false, vertical: true)
+                .multilineTextAlignment(.center)
+            if sessions != nil {
+                Image(systemName: "chevron.down")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(theme.textSecondary.color)
+                    .accessibilityHidden(true)
             }
         }
-        .frame(minHeight: buttonSize)
+        .frame(minWidth: 44, minHeight: 44)
         .contentShape(.rect)
         if let sessions {
             Menu {
                 AgentModelMenuContent(store: sessions, sessionKey: store.sessionKey, onNewChat: onNewChat)
-            } label: { label.accessibilityHidden(true) }
+            } label: { label }
             .buttonStyle(.plain)
-            .accessibilityLabel("\(title). Choose agent or model")
+            .accessibilityLabel(title)
+            .accessibilityHint("Choose agent or model")
             .accessibilityValue([agentName, session?.model].compactMap { $0 }.joined(separator: ", "))
             .accessibilityIdentifier("chat.agentModel")
         } else {

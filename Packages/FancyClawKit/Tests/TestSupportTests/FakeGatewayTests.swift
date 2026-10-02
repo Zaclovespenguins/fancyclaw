@@ -93,6 +93,28 @@ struct FakeGatewayTests {
         #expect(!fake.recordedFailures.isEmpty)
         await connection.disconnect()
     }
+
+    @Test(.timeLimit(.minutes(1)))
+    func connectionRefusalPersistsUntilExplicitlyCleared() async throws {
+        let hello = try #require(Fixtures.decode(ResponseFrame<HelloOK>.self, from: "hello-ok.res").payload)
+        let fake = FakeGateway(replies: [.hello(hello), .hello(hello)])
+        let gateway = try await fake.start()
+        defer { fake.stop() }
+        let connection = GatewayConnection(identity: .generate())
+        _ = try await connection.connect(to: gateway, token: "test-token")
+        fake.refuseConnections(.init(code: .forbidden, message: "Offline demo"))
+        await connection.disconnect()
+        for _ in 0..<2 {
+            await #expect(throws: GatewayErrorShape.self) {
+                _ = try await connection.connect(to: gateway, token: "test-token")
+            }
+        }
+        fake.refuseConnections(nil)
+        // Refusals did not consume the second hello; reconnect succeeds after the explicit clear.
+        _ = try await connection.connect(to: gateway, token: "test-token")
+        #expect(fake.receivedConnects.count == 4)
+        await connection.disconnect()
+    }
 }
 
 @Suite("Schema checker constraints")

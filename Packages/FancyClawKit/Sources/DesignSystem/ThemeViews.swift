@@ -107,9 +107,11 @@ public struct AgentAvatar: View {
     @Environment(\.appTheme) private var theme
     @ScaledMetric private var size: CGFloat
     let name: String?
+    private let accessibilityDescription: String?
 
-    public init(name: String?, size: CGFloat = 30) {
+    public init(name: String?, size: CGFloat = 30, accessibilityLabel: String? = nil) {
         self.name = name
+        accessibilityDescription = accessibilityLabel
         _size = ScaledMetric(wrappedValue: size, relativeTo: .body)
     }
 
@@ -135,7 +137,10 @@ public struct AgentAvatar: View {
                 // Dark glyph: white on the orange gradient fails contrast.
                 .foregroundStyle(theme.textOnAvatar)
             }
-            .accessibilityHidden(true)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(accessibilityDescription ?? "")
+            .accessibilityAddTraits(.isImage)
+            .accessibilityHidden(accessibilityDescription == nil)
     }
 }
 

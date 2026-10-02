@@ -70,20 +70,19 @@ final class AppModel {
                 return
             }
             let arguments = ProcessInfo.processInfo.arguments
-            let demoModes = ["-DemoConversation", "-DemoAttachments", "-DemoApprovals", "-DemoSystemIntegration", "-DemoOffline", "-DemoApprovalFocus"]
+            let demoModes = ["-DemoConversation", "-DemoAttachments", "-DemoApprovals", "-DemoSystemIntegration", "-DemoOffline", "-DemoApprovalFocus", "-DemoSessionActionError"]
             let isDemo = demoModes.contains(where: arguments.contains)
             if arguments.contains("-FakeGateway") || isDemo {
                 isTestMode = true
                 let hello = try Fixtures.decode(ResponseFrame<HelloOK>.self, from: "hello-ok.res").payload
                 guard let hello else { throw ConnectionError.missingPayload }
-                var replies = Array(repeating: FakeGateway.Reply.hello(hello), count: 30)
-                if arguments.contains("-DemoOffline") {
-                    // The first recovery attempt is refused as non-retryable, leaving the app offline until Reconnect.
-                    replies.insert(.failure(.init(code: .forbidden, message: "The demo Gateway refused to reconnect.")), at: 1)
-                }
+                let replies = Array(repeating: FakeGateway.Reply.hello(hello), count: 30)
                 let fake = FakeGateway(replies: replies)
                 fake.streamChatReply("Hello from FakeGateway.")
                 fake.enableSessions()
+                if arguments.contains("-DemoSessionActionError") {
+                    fake.fail("sessions.patch", with: .init(code: .forbidden, message: "The demo Gateway rejected the chat change."))
+                }
                 self.fake = fake
                 initialProfile = GatewayProfile(url: try await fake.start(), token: "test-token")
                 if isDemo, let initialProfile {
@@ -91,12 +90,10 @@ final class AppModel {
                     let hello = try await connection.connect(to: initialProfile.url, token: initialProfile.token)
                     await activate(profile: initialProfile, connection: connection, hello: hello)
                     if arguments.contains("-DemoOffline") {
-                        // Drop after launch-time foreground/reachability updates settle; those would otherwise
-                        // retry past the refused attempt and reconnect on their own.
-                        Task {
-                            try? await Task.sleep(for: .seconds(3))
-                            fake.dropConnections()
-                        }
+                        // Every automatic retry is refused until the person explicitly chooses Reconnect.
+                        // This remains deterministic even if launch-time availability callbacks arrive late.
+                        fake.refuseConnections(.init(code: .forbidden, message: "The demo Gateway refused to reconnect."))
+                        fake.dropConnections()
                         return
                     } else if arguments.contains("-DemoSystemIntegration") {
                         await seedSystemDemo()
@@ -394,6 +391,9 @@ final class AppModel {
 
     func reconnect() async {
         guard !isConnecting else { return }
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-DemoOffline") { fake?.refuseConnections(nil) }
+        #endif
         if let lifecycle {
             await lifecycle.setForeground(false)
             await lifecycle.setForeground(isForeground)

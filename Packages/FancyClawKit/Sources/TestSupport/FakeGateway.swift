@@ -26,6 +26,7 @@ public final class FakeGateway: @unchecked Sendable {
     private var stopped = false
     private var connections: [NWConnection] = []
     private var replies: [Reply]
+    private var connectionFailure: GatewayErrorShape?
     private var requests: [ConnectParams] = []
     private var failures: [Error] = []
     private var rpcRequests: [RequestFrame<JSONValue>] = []
@@ -96,6 +97,11 @@ public final class FakeGateway: @unchecked Sendable {
 
     public func fail(_ method: String, with error: GatewayErrorShape) {
         lock.withLock { rpcErrors[method] = error }
+    }
+
+    /// Refuses every connection until cleared, without consuming the scripted hello replies.
+    public func refuseConnections(_ error: GatewayErrorShape?) {
+        lock.withLock { connectionFailure = error }
     }
 
     public func requestApproval(_ request: ExecApprovalRequest) {
@@ -180,6 +186,7 @@ public final class FakeGateway: @unchecked Sendable {
                 try verify(params)
                 let reply = lock.withLock { () -> Reply? in
                     requests.append(params)
+                    if let connectionFailure { return .failure(connectionFailure) }
                     return replies.isEmpty ? nil : replies.removeFirst()
                 }
                 guard let reply else { throw FakeError.invalidConnect }

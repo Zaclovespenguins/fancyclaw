@@ -13,7 +13,7 @@ struct AgentModelMenuContent: View {
     var body: some View {
         Section("Agent for a new chat") {
             ForEach(store.agents) { agent in
-                Button(agent.name ?? agent.id) {
+                Button(agent.name?.nilIfBlank ?? agent.id.capitalized) {
                     store.selectedAgentID = agent.id
                     Task { await onNewChat() }
                 }
@@ -35,7 +35,15 @@ struct AgentModelMenuContent: View {
     /// The display name of the agent behind `sessionKey`, or nil while the Gateway hasn't said.
     static func agentName(in store: SessionStore, sessionKey: String) -> String? {
         let session = store.sessions.first(where: { $0.key == sessionKey })
-        guard let session else { return store.agents.first(where: { $0.id == store.selectedAgentID })?.name }
-        return store.agents.first(where: { $0.id == session.agentId })?.name ?? session.agentId
+        let agentID = session?.agentId ?? store.selectedAgentID
+        guard let agentID else { return nil }
+        return store.agents.first(where: { $0.id == agentID })?.name?.nilIfBlank ?? agentID.capitalized
+    }
+}
+
+private extension String {
+    var nilIfBlank: String? {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }

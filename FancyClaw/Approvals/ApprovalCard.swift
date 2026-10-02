@@ -62,7 +62,7 @@ struct ApprovalCard: View {
             Text("APPROVAL NEEDED")
                 .font(.footnote.weight(.bold))
                 .tracking(0.6)
-                .foregroundStyle(theme.accentText.color)
+                .foregroundStyle(theme.textPrimary.color)
                 .accessibilityAddTraits(.isHeader)
                 .accessibilityIdentifier("approval.status.\(approval.id)")
             Text(approval.displayTitle)
