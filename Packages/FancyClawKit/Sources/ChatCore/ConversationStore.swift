@@ -80,6 +80,7 @@ public final class ConversationStore {
         let revision = transcriptRevision
         defer { finishLoadingHistory() }
         do {
+            try await connection.subscribeToSessionMessages(sessionKey)
             if let deltaCursor {
                 let catchUp: ChatHistoryCatchUp = try await connection.request("chat.history",
                     params: ChatHistoryParams(sessionKey: sessionKey, cursor: deltaCursor), returning: ChatHistoryCatchUp.self)
@@ -201,6 +202,13 @@ public final class ConversationStore {
 
     /// Registers for Gateway events and consumes them until cancelled.
     public func start() async {
+        guard !invalidated else { return }
+        if eventTask != nil {
+            // The local consumer survives reconnect, but the server registration does not.
+            do { try await connection.subscribeToSessionMessages(sessionKey) }
+            catch { errorMessage = "Couldn’t subscribe to the conversation. \(error.localizedDescription)" }
+            return
+        }
         // `events()` suspends, so claim the slot first or concurrent callers each leak a subscription.
         guard eventTask == nil, !isStarting else { return }
         isStarting = true
@@ -215,6 +223,8 @@ public final class ConversationStore {
                 self?.receive(frame)
             }
         }
+        do { try await connection.subscribeToSessionMessages(sessionKey) }
+        catch { errorMessage = "Couldn’t subscribe to the conversation. \(error.localizedDescription)" }
     }
 
     public func invalidate() {
@@ -372,7 +382,15 @@ public final class ConversationStore {
                 let liveID = assistantMessageID(for: runID)
                 if messages.contains(where: { $0.id == liveID }) && !canonical.contains(where: { $0.id == liveID }) { id = liveID }
             }
-            if let key = message.idempotencyKey { confirmedKeys.insert(key) }
+            if role == .user, let key = message.idempotencyKey {
+                // The pinned Gateway persists submitted input as `<send-key>:user`.
+                // Match only pending identities, never text or an assistant's bookkeeping key.
+                if outbox[key] != nil { confirmedKeys.insert(key) }
+                if key.hasSuffix(":user") {
+                    let sendKey = String(key.dropLast(":user".count))
+                    if outbox[sendKey] != nil { confirmedKeys.insert(sendKey) }
+                }
+            }
             let currentStreaming = messages.first(where: { $0.id == id || $0.id == assistantMessageID(for: message.metadata?.runId ?? "") })
             canonical.append(ConversationMessage(
                 id: id, role: role, text: Self.visibleText(message),
@@ -490,6 +508,8 @@ public final class ConversationStore {
         activeRunID = runIDsByIdempotencyKey[idempotencyKey] ?? idempotencyKey
 
         do {
+            try await connection.subscribeToSessionMessages(sessionKey)
+            guard !invalidated else { return true }
             let response: ChatSendResponse = try await connection.request(
                 "chat.send",
                 params: params,

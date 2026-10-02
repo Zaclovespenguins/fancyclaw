@@ -39,6 +39,13 @@ public final class FakeGateway: @unchecked Sendable {
     private var sessionRows: [SessionSummary] = []
     private var histories: [String: [ChatMessage]] = [:]
     private var cursorVersion = 0
+    private var requiresMessageSubscription = false
+    private var messageSubscriptions: [ObjectIdentifier: Set<String>] = [:]
+
+    /// Models the session-scoped event routing used by the pinned real Gateway.
+    public func enforceMessageSubscriptions() {
+        lock.withLock { requiresMessageSubscription = true }
+    }
 
     /// A small stateful session service used only by debug app launches and session integration tests.
     public func enableSessions() {
@@ -201,6 +208,9 @@ public final class FakeGateway: @unchecked Sendable {
                 lock.withLock { rpcRequests.append(request) }
                 if let error = lock.withLock({ rpcErrors[request.method] }) {
                     send(ResponseFrame<JSONValue>(id: request.id, ok: false, error: error), on: connection)
+                } else if request.method == "sessions.messages.subscribe", let key = request.params?["key"]?.stringValue {
+                    lock.withLock { _ = messageSubscriptions[ObjectIdentifier(connection), default: []].insert(key) }
+                    send(ResponseFrame(id: request.id, ok: true, payload: JSONValue.object(["subscribed": .bool(true)])), on: connection)
                 } else if request.method == "exec.approval.resolve", let params = request.params {
                     let decision = try params.decode(as: ExecApprovalResolveParams.self)
                     let approval = lock.withLock { approvals[decision.id] }
@@ -235,7 +245,7 @@ public final class FakeGateway: @unchecked Sendable {
                                     width: attachment.width, height: attachment.height, sizeBytes: attachment.sizeBytes))
                             }
                             histories[sessionKey, default: []].append(ChatMessage(role: .user, content: [.text(request.params?["message"]?.stringValue ?? "")] + media,
-                                idempotencyKey: runID, metadata: .init(id: runID + ":user")))
+                                idempotencyKey: runID + ":user", metadata: .init(id: runID + ":user")))
                             cursorVersion += 1
                         }
                     }
@@ -366,6 +376,16 @@ public final class FakeGateway: @unchecked Sendable {
     }
 
     private func send<T: Encodable>(_ frame: T, on connection: NWConnection) {
+        if let frame = frame as? GatewayEventFrame {
+            let key: String?
+            switch frame.event {
+            case .chat(let event): key = event.sessionKey
+            case .agent(let event): key = event.sessionKey
+            default: key = nil
+            }
+            if let key, lock.withLock({ requiresMessageSubscription &&
+                messageSubscriptions[ObjectIdentifier(connection)]?.contains(key) != true }) { return }
+        }
         do {
             let data = try GatewayCoding.encoder().encode(frame)
             let metadata = NWProtocolWebSocket.Metadata(opcode: .text)

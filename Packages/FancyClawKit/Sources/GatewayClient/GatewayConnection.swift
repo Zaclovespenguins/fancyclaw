@@ -27,6 +27,7 @@ public actor GatewayConnection {
     private var eventContinuations: [UUID: AsyncStream<GatewayEventFrame>.Continuation] = [:]
     private var generation = UUID()
     private var ready = false
+    private var messageSubscriptions: Set<String> = []
     private var failures: [UUID: AsyncStream<Void>.Continuation] = [:]
     private var mediaOrigin: URL?
     private var mediaBearer: String?
@@ -90,6 +91,19 @@ public actor GatewayConnection {
     }
 
     private func removeEventContinuation(_ id: UUID) { eventContinuations.removeValue(forKey: id) }
+
+    /// Local event consumers do not register server-side routing. Keep subscriptions for the
+    /// socket lifetime so inactive conversation stores and Live Activities still receive events.
+    public func subscribeToSessionMessages(_ key: String) async throws {
+        guard ready else { throw ConnectionError.disconnected }
+        guard !messageSubscriptions.contains(key) else { return }
+        let subscriptionGeneration = generation
+        let response: JSONValue = try await request("sessions.messages.subscribe",
+            params: SessionKeyParams(key: key), returning: JSONValue.self)
+        guard subscriptionGeneration == generation, ready else { throw ConnectionError.disconnected }
+        guard response["subscribed"]?.boolValue == true else { throw ConnectionError.invalidResponse }
+        messageSubscriptions.insert(key)
+    }
 
     public func connect(
         to url: URL, token: String? = nil, bootstrapToken: String? = nil,
@@ -315,6 +329,7 @@ public actor GatewayConnection {
     public func disconnect() {
         generation = UUID()
         ready = false
+        messageSubscriptions.removeAll()
         mediaOrigin = nil
         mediaBearer = nil
         reader?.cancel()
