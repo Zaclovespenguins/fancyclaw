@@ -22,15 +22,14 @@ final class ApprovalTests: XCTestCase {
         approve.tap()
         XCTAssertTrue(app.staticTexts["Approved once"].waitForExistence(timeout: 5))
         XCTAssertFalse(approve.exists)
-        XCTAssertEqual(app.buttons["chat.sessions"].value as? String, "1 pending command approvals")
-        app.buttons["chat.sessions"].tap()
+        app.openChatsTab()
         let other = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND identifier != %@",
             "sessions.row.", "sessions.row.agent:main:main")).firstMatch
         XCTAssertTrue(other.waitForExistence(timeout: 5))
         let badge = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "sessions.approvals.")).firstMatch
         XCTAssertTrue(badge.exists)
         let drawer = XCTAttachment(screenshot: app.screenshot())
-        drawer.name = "Exec approval — other chat badge"
+        drawer.name = "Exec approval — other chat badge in Chats tab"
         drawer.lifetime = .keepAlways
         add(drawer)
         other.tap()
@@ -40,6 +39,8 @@ final class ApprovalTests: XCTestCase {
         XCTAssertFalse(app.staticTexts["swift --version"].exists)
         deny.tap()
         XCTAssertTrue(app.staticTexts["Denied"].waitForExistence(timeout: 5))
-        XCTAssertEqual(app.buttons["chat.sessions"].value as? String, "0 pending command approvals")
+        app.goBackToTab()
+        XCTAssertTrue(app.navigationBars["Chats"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "sessions.approvals.")).firstMatch.exists)
     }
 }

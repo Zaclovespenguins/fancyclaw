@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<style>
+html,body{margin:0;background:#141417;}
+*{box-sizing:border-box;-webkit-font-smoothing:antialiased}
+a{color:oklch(0.74 0.16 40);text-decoration:none}
+a:hover{color:oklch(0.82 0.12 40)}
+</style>
+</helmet>
+<section style="padding:72px 64px 96px;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',Helvetica,sans-serif;color:#f5f5f7;">
+  <div style="max-width:900px;margin-bottom:56px;">
+    <div style="font-size:15px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:oklch(0.74 0.16 40);">OpenClaw for iOS · Round 1</div>
+    <div style="font-size:44px;font-weight:700;letter-spacing:-0.025em;margin-top:8px;">Two directions</div>
+    <div style="font-size:19px;line-height:1.5;color:rgba(235,235,245,0.6);margin-top:10px;text-wrap:pretty;"><a href="#1a">1a</a> opens straight into the conversation; the tab bar shrinks to a glass button beside the input. <a href="#1b">1b</a> opens to a dashboard with a large prompt card, pending approvals and running tasks, and the conversation opens from there.</div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:96px;">
+
+    <!-- 1a -->
+    <div id="1a" style="display:flex;flex-direction:column;gap:28px;">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div style="padding:6px 12px;border-radius:999px;background:oklch(0.74 0.16 40);color:#111;font-size:15px;font-weight:700;">1a</div>
+        <div style="font-size:24px;font-weight:600;letter-spacing:-0.01em;">Chat-first</div>
+      </div>
+      <div style="display:flex;gap:56px;flex-wrap:wrap;align-items:flex-start;">
+
+        <!-- 1a Chat -->
+        <div style="display:flex;flex-direction:column;gap:18px;align-items:center;">
+          <div data-screen-label="1a Chat" style="position:relative;width:393px;height:852px;border-radius:56px;overflow:hidden;background:#0b0b0f;box-shadow:0 0 0 10px #1a1a1d,0 0 0 11px #303034,0 40px 80px rgba(0,0,0,0.5);">
+            <sc-if value="{{ glow }}" hint-placeholder-val="{{ true }}">
+              <div style="position:absolute;top:-160px;left:-140px;width:440px;height:440px;border-radius:50%;background:radial-gradient(circle,oklch(0.65 0.19 38 / 0.5),transparent 65%);"></div>
+              <div style="position:absolute;top:-80px;right:-180px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,oklch(0.6 0.18 300 / 0.4),transparent 65%);"></div>
+              <div style="position:absolute;bottom:-220px;left:-40px;width:460px;height:420px;border-radius:50%;background:radial-gradient(circle,oklch(0.6 0.14 230 / 0.22),transparent 65%);"></div>
+            </sc-if>
+            <div style="position:absolute;top:0;left:0;right:0;height:54px;display:flex;align-items:center;justify-content:space-between;padding:6px 36px 0 48px;font-size:17px;font-weight:600;z-index:5;"><span>9:41</span><div style="display:flex;gap:6px;align-items:center;"><div style="display:flex;gap:2px;align-items:flex-end;"><div style="width:3px;height:4px;border-radius:1px;background:#fff;"></div><div style="width:3px;height:6px;border-radius:1px;background:#fff;"></div><div style="width:3px;height:9px;border-radius:1px;background:#fff;"></div><div style="width:3px;height:12px;border-radius:1px;background:#fff;"></div></div><div style="width:25px;height:12px;border-radius:4px;border:1px solid rgba(255,255,255,0.4);padding:1.5px;"><div style="width:80%;height:100%;border-radius:2px;background:#fff;"></div></div></div></div>
+            <div style="position:absolute;top:11px;left:50%;margin-left:-62px;width:124px;height:36px;border-radius:18px;background:#000;z-index:6;"></div>
+
+            <div style="position:absolute;top:112px;left:16px;right:16px;display:flex;flex-direction:column;gap:14px;">
+              <div style="align-self:flex-end;max-width:82%;padding:11px 15px;border-radius:22px 22px 6px 22px;font-size:16px;line-height:1.38;background:oklch(0.66 0.17 38 / 0.32);border:0.5px solid oklch(0.8 0.12 40 / 0.35);box-shadow:inset 0 1px 0 rgba(255,255,255,0.18);">Clean up the photo-sync repo and get CI green before tomorrow</div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,oklch(0.8 0.14 55),oklch(0.62 0.2 28));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;">C</div>
+                <div style="font-size:16px;line-height:1.38;">On it. Four tests fail on date parsing, patching now.</div>
+              </div>
+              <div style="border-radius:22px;padding:14px 16px;background:rgba(255,255,255,0.07);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:0.5px solid rgba(255,255,255,0.14);box-shadow:inset 0 1px 0 rgba(255,255,255,0.16);">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                  <div style="font-size:13px;font-weight:600;letter-spacing:0.03em;text-transform:uppercase;color:rgba(235,235,245,0.6);">Working · 3 of 5</div>
+                  <div style="font-size:13px;color:rgba(235,235,245,0.45);font-variant-numeric:tabular-nums;">1:42</div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:9px;">
+                  <sc-for list="{{ steps }}" as="s" hint-placeholder-count="5">
+                    <div style="display:flex;align-items:center;gap:10px;font-size:15px;color:{{ s.color }};">
+                      <sc-if value="{{ s.done }}"><div style="width:18px;height:18px;border-radius:50%;background:oklch(0.72 0.17 38);display:flex;align-items:center;justify-content:center;"><svg width="10" height="8" viewBox="0 0 10 8"><path d="M1 4l3 3 5-6" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></div></sc-if>
+                      <sc-if value="{{ s.active }}"><div style="width:18px;height:18px;border-radius:50%;border:2px solid rgba(255,255,255,0.15);border-top-color:oklch(0.78 0.15 40);border-right-color:oklch(0.78 0.15 40);"></div></sc-if>
+                      <sc-if value="{{ s.pending }}"><div style="width:18px;height:18px;border-radius:50%;border:1.5px solid rgba(255,255,255,0.22);"></div></sc-if>
+                      <span>{{ s.text }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="border-radius:22px;overflow:hidden;background:rgba(255,255,255,0.07);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:0.5px solid rgba(255,255,255,0.14);box-shadow:inset 0 1px 0 rgba(255,255,255,0.16);">
+                <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;">
+                  <div style="width:26px;height:26px;border-radius:7px;background:rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:10px;font-weight:600;color:rgba(235,235,245,0.8);">{ }</div>
+                  <div style="flex:1;font-size:15px;font-weight:600;">parser.swift</div>
+                  <div style="font-size:13px;font-weight:600;font-family:ui-monospace,'SF Mono',Menlo,monospace;"><span style="color:oklch(0.8 0.16 150);">+2</span> <span style="color:oklch(0.72 0.17 25);">−1</span></div>
+                </div>
+                <div style="background:rgba(0,0,0,0.35);padding:8px 0;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:11.5px;line-height:20px;">
+                  <sc-for list="{{ diff }}" as="d" hint-placeholder-count="4">
+                    <div style="display:flex;gap:10px;padding:0 14px;background:{{ d.bg }};color:{{ d.color }};white-space:pre;"><span style="width:8px;opacity:0.7;">{{ d.sign }}</span><span>{{ d.text }}</span></div>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="border-radius:22px;padding:14px 16px;background:oklch(0.5 0.12 38 / 0.18);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:0.5px solid oklch(0.78 0.14 40 / 0.4);box-shadow:inset 0 1px 0 rgba(255,255,255,0.16);">
+                <div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;letter-spacing:0.03em;text-transform:uppercase;color:oklch(0.82 0.13 45);"><div style="width:7px;height:7px;border-radius:50%;background:oklch(0.78 0.16 40);"></div>Approval needed</div>
+                <div style="font-size:16px;font-weight:600;margin-top:6px;">Push the fix and open a PR?</div>
+                <div style="margin-top:10px;padding:9px 12px;border-radius:12px;background:rgba(0,0,0,0.35);font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12.5px;color:rgba(235,235,245,0.85);">git push origin fix/date-parser</div>
+                <div style="display:flex;gap:8px;margin-top:12px;">
+                  <div style="flex:1;height:40px;border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;background:rgba(255,255,255,0.1);">Deny</div>
+                  <div style="flex:1;height:40px;border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;background:#f5f5f7;color:#111;">Approve</div>
+                </div>
+              </div>
+            </div>
+
+            <div style="position:absolute;top:0;left:0;right:0;height:120px;background:linear-gradient(rgba(11,11,15,0.85) 55%,rgba(11,11,15,0));z-index:3;"></div>
+            <div style="position:absolute;top:56px;left:16px;right:16px;height:48px;display:flex;align-items:center;justify-content:space-between;z-index:4;">
+              <div style="width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.08);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:0.5px solid rgba(255,255,255,0.16);box-shadow:inset 0 1px 0 rgba(255,255,255,0.18);"><svg width="20" height="16" viewBox="0 0 20 16"><path d="M2 3h16M2 8h11M2 13h16" stroke="#fff" stroke-width="1.8" stroke-linecap="round"></path></svg></div>
+              <div style="display:flex;align-items:center;gap:9px;height:44px;padding:0 16px 0 8px;border-radius:22px;background:rgba(255,255,255,0.08);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:0.5px solid rgba(255,255,255,0.16);box-shadow:inset 0 1px 0 rgba(255,255,255,0.18);">
+                <div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,oklch(0.8 0.14 55),oklch(0.62 0.2 28));display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;">C</div>
+                <div style="display:flex;flex-direction:column;line-height:1.15;"><span style="font-size:15px;font-weight:600;">Claw</span><span style="font-size:11px;color:rgba(235,235,245,0.55);">studio-mini · Opus</span></div>
+              </div>
+              <div style="width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.08);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:0.5px solid rgba(255,255,255,0.16);box-shadow:inset 0 1px 0 rgba(255,255,255,0.18);"><svg width="18" height="18" viewBox="0 0 18 18"><path d="M8 2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4M12.5 2.5l3 3L9 12H6V9z" stroke="#fff" stroke-width="1.6" fill="none" stroke-linejoin="round"></path></svg></div>
+            </div>
+
+            <div style="position:absolute;bottom:0;left:0;right:0;height:130px;background:linear-gradient(rgba(11,11,15,0),rgba(11,11,15,0.9) 60%);z-index:3;"></div>
+            <div style="position:absolute;bottom:30px;left:16px;right:16px;display:flex;gap:10px;z-index:4;">
+              <div style="width:54px;height:54px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.09);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:0.5px solid rgba(255,255,255,0.16);box-shadow:inset 0 1px 0 rgba(255,255,255,0.2);color:oklch(0.8 0.14 42);">{{ icChat }}</div>
+              <div style="flex:1;height:54px;border-radius:27px;display:flex;align-items:center;gap:10px;padding:0 7px 0 7px;background:rgba(255,255,255,0.09);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:0.5px solid rgba(255,255,255,0.16);box-shadow:inset 0 1px 0 rgba(255,255,255,0.2);">
+                <div style="width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.08);"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M7 1v12M1 7h12" stroke="#fff" stroke-width="1.8" stroke-linecap="round"></path></svg></div>
+                <div style="flex:1;font-size:16px;color:rgba(235,235,245,0.4);">Message Claw</div>
+                <div style="width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#f5f5f7;"><svg width="16" height="14" viewBox="0 0 16 14"><path d="M2 5v4M5 2v10M8 4v6M11 1v12M14 5v4" stroke="#111" stroke-width="1.8" stroke-linecap="round"></path></svg></div>
+              </div>
+            </div>
+            <div style="position:absolute;bottom:8px;left:50%;margin-left:-67px;width:134px;height:5px;border-radius:3px;background:#fff;z-index:5;"></div>
+          </div>
+          <div style="font-size:15px;color:rgba(235,235,245,0.55);">Chat · steps, diff, approval cards</div>
+        </div>
+
+        <!-- 1a History -->
+        <div style="display:flex;flex-direction:column;gap:18px;align-items:center;">
+          <div data-screen-label="1a History" style="position:relative;width:393px;height:852px;border-radius:56px;overflow:hidden;background:#0b0b0f;box-shadow:0 0 0 10px #1a1a1d,0 0 0 11px #303034,0 40px 80px rgba(0,0,0,0.5);">
+            <sc-if value="{{ glow }}" hint-placeholder-val="{{ true }}">
+              <div style="position:absolute;top:-200px;right:-160px;width:440px;height:440px;border-radius:50%;background:radial-gradient(circle,oklch(0.6 0.18 300 / 0.38),transparent 65%);"></div>
+              <div style="position:absolute;bottom:-160px;left:-160px;width:440px;height:440px;border-radius:50%;background:radial-gradient(circle,oklch(0.65 0.19 38 / 0.3),transparent 65%);"></div>
+            </sc-if>
+            <div style="position:absolute;top:0;left:0;right:0;height:54px;display:flex;align-items:center;justify-content:space-between;padding:6px 36px 0 48px;font-size:17px;font-weight:600;z-index:5;"><span>9:41</span><div style="display:flex;gap:6px;align-items:center;"><div style="display:flex;gap:2px;align-items:flex-end;"><div style="width:3px;height:4px;border-radius:1px;background:#fff;"></div><div style="width:3px;height:6px;border-radius:1px;background:#fff;"></div><div style="width:3px;height:9px;border-radius:1px;background:#fff;"></div><div style="width:3px;height:12px;border-radius:1px;background:#fff;"></div></div><div style="width:25px;height:12px;border-radius:4px;border:1px solid rgba(255,255,255,0.4);padding:1.5px;"><div style="width:80%;height:100%;border-radius:2px;background:#fff;"></div></div></div></div>
+            <div style="position:absolute;top:11px;left:50%;margin-left:-62px;width:124px;height:36px;border-radius:18px;background:#000;z-index:6;"></div>
+            <div style="position:absolute;top:62px;left:16px;right:16px;display:flex;flex-direction:column;">
+              <div style="display:flex;justify-content:space-between;align-items:center;height:44px;">
+                <div style="height:36px;padding:0 14px;border-radius:18px;display:flex;align-items:center;font-size:15px;font-weight:600;background:rgba(255,255,255,0.08);border:0.5px solid rgba(255,255,255,0.14);">Edit</div>
+                <div style="width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.08);border:0.5px solid rgba(255,255,255,0.14);"><svg width="17" height="17" viewBox="0 0 18 18"><path d="M8 2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4M12.5 2.5l3 3L9 12H6V9z" stroke="#fff" stroke-width="1.6" fill="none" stroke-linejoin="round"></path></svg></div>
+              </div>
+              <div style="font-size:34px;font-weight:700;letter-spacing:-0.02em;margin:6px 4px 12px;">History</div>
+              <div style="height:40px;border-radius:20px;display:flex;align-items:center;gap:8px;padding:0 14px;background:rgba(255,255,255,0.08);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);border:0.5px solid rgba(255,255,255,0.12);font-size:16px;color:rgba(235,235,245,0.4);"><svg width="15" height="15" viewBox="0 0 15 15"><circle cx="6.5" cy="6.5" r="5" stroke="rgba(235,235,245,0.5)" stroke-width="1.6" fill="none"></circle><path d="M10.5 10.5L14 14" stroke="rgba(235,235,245,0.5)" stroke-width="1.6" stroke-linecap="round"></path></svg>Search conversations</div>
+              <sc-for list="{{ history }}" as="g" hint-placeholder-count="2">
+                <div style="font-size:13px;font-weight:600;letter-spacing:0.03em;text-transform:uppercase;color:rgba(235,235,245,0.5);margin:22px 4px 8px;">{{ g.label }}</div>
+                <div style="border-radius:22px;overflow:hidden;background:rgba(255,255,255,0.06);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:0.5px solid rgba(255,255,255,0.12);box-shadow:inset 0 1px 0 rgba(255,255,255,0.12);">
+                  <sc-for list="{{ g.items }}" as="r" hint-placeholder-count="3">
+                    <div style="padding:12px 16px;border-top:{{ r.border }};">
+                      <div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline;">
+                        <div style="font-size:16px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ r.title }}</div>
+                        <div style="font-size:13px;color:rgba(235,235,245,0.45);flex-shrink:0;">{{ r.time }}</div>
+                      </div>
+                      <div style="font-size:14px;color:rgba(235,235,245,0.55);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ r.preview }}</div>
+                      <sc-if value="{{ r.chip }}"><div style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:4px 9px;border-radius:999px;font-size:12px;font-weight:600;background:{{ r.chipBg }};color:{{ r.chipColor }};"><div style="width:6px;height:6px;border-radius:50%;background:{{ r.chipColor }};"></div>{{ r.chip }}</div></sc-if>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-for>
+            </div>
+            <div style="position:absolute;bottom:0;left:0;right:0;height:120px;background:linear-gradient(rgba(11,11,15,0),rgba(11,11,15,0.85) 60%);z-index:3;"></div>
+            <div style="position:absolute;left:16px;right:16px;bottom:28px;height:64px;border-radius:32px;display:flex;padding:5px;z-index:4;background:rgba(255,255,255,0.09);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:0.5px solid rgba(255,255,255,0.16);box-shadow:inset 0 1px 0 rgba(255,255,255,0.2),0 10px 30px rgba(0,0,0,0.35);">
+              <sc-for list="{{ tabsA_history }}" as="t" hint-placeholder-count="4">
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-radius:27px;font-size:10px;font-weight:600;background:{{ t.bg }};color:{{ t.color }};">{{ t.icon }}<span>{{ t.label }}</span></div>
+              </sc-for>
+            </div>
+            <div style="position:absolute;bottom:8px;left:50%;margin-left:-67px;width:134px;height:5px;border-radius:3px;background:#fff;z-index:5;"></div>
+          </div>
+          <div style="font-size:15px;color:rgba(235,235,245,0.55);">History · conversation list</div>
+        </div>
+
+        <!-- 1a Skills -->
+        <div style="display:flex;flex-direction:column;gap:18px;align-items:center;">
+          <div data-screen-label="1a Skills" style="position:relative;width:393px;height:852px;border-radius:56px;overflow:hidden;background:#0b0b0f;box-shadow:0 0 0 10px #1a1a1d,0 0 0 11px #303034,0 40px 80px rgba(0,0,0,0.5);">
+            <sc-if value="{{ glow }}" hint-placeholder-val="{{ true }}">
+              <div style="position:absolute;top:-180px;left:-120px;width:440px;height:440px;border-radius:50%;background:radial-gradient(circle,oklch(0.6 0.14 230 / 0.35),transparent 65%);"></div>
+              <div style="position:absolute;top:220px;right:-220px;width:440px;height:440px;border-radius:50%;background:radial-gradient(circle,oklch(0.65 0.19 38 / 0.25),transparent 65%);"></div>
+            </sc-if>
+            <div style="position:absolute;top:0;left:0;right:0;height:54px;display:flex;align-items:center;justify-content:space-between;padding:6px 36px 0 48px;font-size:17px;font-weight:600;z-index:5;"><span>9:41</span><div style="display:flex;gap:6px;align-items:center;"><div style="display:flex;gap:2px;align-items:flex-end;"><div style="width:3px;height:4px;border-radius:1px;background:#fff;"></div><div style="width:3px;height:6px;border-radius:1px;background:#fff;"></div><div style="width:3px;height:9px;border-radius:1px;background:#fff;"></div><div style="width:3px;height:12px;border-radius:1px;background:#fff;"></div></div><div style="width:25px;height:12px;border-radius:4px;border:1px solid rgba(255,255,255,0.4);padding:1.5px;"><div style="width:80%;height:100%;border-radius:2px;background:#fff;"></div></div></div></div>
+            <div style="position:absolute;top:11px;left:50%;margin-left:-62px;width:124px;height:36px;border-radius:18px;background:#000;z-index:6;"></div>
+            <div style="position:absolute;top:62px;left:16px;right:16px;display:flex;flex-direction:column;">
+              <div style="display:flex;justify-content:flex-end;align-items:center;height:44px;">
+                <div style="width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.08);border:0.5px solid rgba(255,255,255,0.14);"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M7 1v12M1 7h12" stroke="#fff" stroke-width="1.8" stroke-linecap="round"></path></svg></div>
+              </div>
+              <div style="font-size:34px;font-weight:700;letter-spacing:-0.02em;margin:6px 4px 12px;">Skills</div>
+              <div style="display:flex;height:36px;padding:3px;border-radius:18px;background:rgba(255,255,255,0.08);border:0.5px solid rgba(255,255,255,0.12);">
+                <div style="flex:1;border-radius:15px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;background:rgba(255,255,255,0.18);box-shadow:inset 0 1px 0 rgba(255,255,255,0.2);">Installed</div>
+                <div style="flex:1;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:500;color:rgba(235,235,245,0.6);">Discover</div>
+              </div>
+              <div style="font-size:13px;font-weight:600;letter-spacing:0.03em;text-transform:uppercase;color:rgba(235,235,245,0.5);margin:22px 4px 8px;">On studio-mini</div>
+              <div style="border-radius:22px;overflow:hidden;background:rgba(255,255,255,0.06);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:0.5px solid rgba(255,255,255,0.12);box-shadow:inset 0 1px 0 rgba(255,255,255,0.12);">
+                <sc-for list="{{ skills }}" as="k" hint-placeholder-count="8">
+                  <div style="display:flex;align-items:center;gap:12px;padding:11px 14px;border-top:{{ k.border }};">
+                    <div style="width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#fff;background:{{ k.color }};box-shadow:inset 0 1px 0 rgba(255,255,255,0.3);">{{ k.glyph }}</div>
+                    <div style="flex:1;min-width:0;">
+                      <div style="font-size:16px;font-weight:600;">{{ k.name }}</div>
+                      <div style="font-size:13px;color:rgba(235,235,245,0.5);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ k.desc }}</div>
+                    </div>
+                    <div style="width:51px;height:31px;border-radius:16px;padding:2px;display:flex;justify-content:{{ k.knob }};background:{{ k.track }};flex-shrink:0;"><div style="width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,0.25);"></div></div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="position:absolute;bottom:0;left:0;right:0;height:120px;background:linear-gradient(rgba(11,11,15,0),rgba(11,11,15,0.85) 60%);z-index:3;"></div>
+            <div style="position:absolute;left:16px;right:16px;bottom:28px;height:64px;border-radius:32px;display:flex;padding:5px;z-index:4;background:rgba(255,255,255,0.09);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:0.5px solid rgba(255,255,255,0.16);box-shadow:inset 0 1px 0 rgba(255,255,255,0.2),0 10px 30px rgba(0,0,0,0.35);">
+              <sc-for list="{{ tabsA_skills }}" as="t" hint-placeholder-count="4">
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-radius:27px;font-size:10px;font-weight:600;background:{{ t.bg }};color:{{ t.color }};">{{ t.icon }}<span>{{ t.label }}</span></div>
+              </sc-for>
+            </div>
+            <div style="position:absolute;bottom:8px;left:50%;margin-left:-67px;width:134px;height:5px;border-radius:3px;background:#fff;z-index:5;"></div>
+          </div>
+          <div style="font-size:15px;color:rgba(235,235,245,0.55);">Skills · grouped list with toggles</div>
+        </div>
+
+        <!-- 1a Activity -->
+        <div style="display:flex;flex-direction:column;gap:18px;align-items:center;">
+          <div data-screen-label="1a Activity" style="position:relative;width:393px;height:852px;border-radius:56px;overflow:hidden;background:#0b0b0f;box-shadow:0 0 0 10px #1a1a1d,0 0 0 11px #303034,0 40px 80px rgba(0,0,0,0.5);">
+            <sc-if value="{{ glow }}" hint-placeholder-val="{{ true }}">
+              <div style="position:absolute;top:-180px;left:-140px;width:460px;height:460px;border-radius:50%;background:radial-gradient(circle,oklch(0.65 0.19 38 / 0.45),transparent 65%);"></div>
+              <div style="position:absolute;bottom:-200px;right:-160px;width:440px;height:440px;border-radius:50%;background:radial-gradient(circle,oklch(0.6 0.18 300 / 0.3),transparent 65%);"></div>
+            </sc-if>
+            <div style="position:absolute;top:0;left:0;right:0;height:54px;display:flex;align-items:center;justify-content:space-between;padding:6px 36px 0 48px;font-size:17px;font-weight:600;z-index:5;"><span>9:41</span><div style="display:flex;gap:6px;align-items:center;"><div style="display:flex;gap:2px;align-items:flex-end;"><div style="width:3px;height:4px;border-radius:1px;background:#fff;"></div><div style="width:3px;height:6px;border-radius:1px;background:#fff;"></div><div style="width:3px;height:9px;border-radius:1px;background:#fff;"></div><div style="width:3px;height:12px;border-radius:1px;background:#fff;"></div></div><div style="width:25px;height:12px;border-radius:4px;border:1px solid rgba(255,255,255,0.4);padding:1.5px;"><div style="width:80%;height:100%;border-radius:2px;background:#fff;"></div></div></div></div>
+            <div style="position:absolute;top:11px;left:50%;margin-left:-62px;width:124px;height:36px;border-radius:18px;background:#000;z-index:6;"></div>
+            <div style="position:absolute;top:62px;left:16px;right:16px;display:flex;flex-direction:column;">
+              <div style="height:44px;"></div>
+              <div style="font-size:34px;font-weight:700;letter-spacing:-0.02em;margin:6px 4px 12px;">Activity</div>
+              <div style="display:flex;gap:8px;">
+                <sc-for list="{{ filters }}" as="f" hint-placeholder-count="4">
+                  <div style="height:34px;padding:0 14px;border-radius:17px;display:flex;align-items:center;font-size:14px;font-weight:600;background:{{ f.bg }};color:{{ f.color }};border:0.5px solid rgba(255,255,255,0.12);">{{ f.label }}</div>
+                </sc-for>
+              </div>
+              <sc-for list="{{ activityA }}" as="g" hint-placeholder-count="3">
+                <div style="font-size:13px;font-weight:600;letter-spacing:0.03em;text-transform:uppercase;color:rgba(235,235,245,0.5);margin:22px 4px 8px;">{{ g.label }}</div>
+                <div style="border-radius:22px;overflow:hidden;background:rgba(255,255,255,0.06);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:0.5px solid {{ g.edge }};box-shadow:inset 0 1px 0 rgba(255,255,255,0.12);">
+                  <sc-for list="{{ g.items }}" as="a" hint-placeholder-count="2">
+                    <div style="display:flex;gap:12px;padding:12px 16px;border-top:{{ a.border }};">
+                      <div style="width:8px;height:8px;border-radius:50%;margin-top:7px;flex-shrink:0;background:{{ a.dot }};box-shadow:0 0 8px {{ a.dot }};"></div>
+                      <div style="flex:1;min-width:0;">
+                        <div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline;">
+                          <div style="font-size:16px;font-weight:600;">{{ a.title }}</div>
+                          <div style="font-size:13px;color:rgba(235,235,245,0.45);flex-shrink:0;">{{ a.time }}</div>
+                        </div>
+                        <div style="font-size:14px;color:rgba(235,235,245,0.55);margin-top:2px;line-height:1.35;">{{ a.detail }}</div>
+                        <sc-if value="{{ a.progress }}"><div style="height:4px;border-radius:2px;background:rgba(255,255,255,0.1);margin-top:10px;overflow:hidden;"><div style="height:100%;border-radius:2px;background:oklch(0.74 0.16 40);width:{{ a.progress }};"></div></div></sc-if>
+                      </div>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-for>
+            </div>
+            <div style="position:absolute;bottom:0;left:0;right:0;height:120px;background:linear-gradient(rgba(11,11,15,0),rgba(11,11,15,0.85) 60%);z-index:3;"></div>
+            <div style="position:absolute;left:16px;right:16px;bottom:28px;height:64px;border-radius:32px;display:flex;padding:5px;z-index:4;background:rgba(255,255,255,0.09);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:0.5px solid rgba(255,255,255,0.16);box-shadow:inset 0 1px 0 rgba(255,255,255,0.2),0 10px 30px rgba(0,0,0,0.35);">
+              <sc-for list="{{ tabsA_activity }}" as="t" hint-placeholder-count="4">
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-radius:27px;font-size:10px;font-weight:600;background:{{ t.bg }};color:{{ t.color }};">{{ t.icon }}<span>{{ t.label }}</span></div>
+              </sc-for>
+            </div>
+            <div style="position:absolute;bottom:8px;left:50%;margin-left:-67px;width:134px;height:5px;border-radius:3px;background:#fff;z-index:5;"></div>
+          </div>
+          <div style="font-size:15px;color:rgba(235,235,245,0.55);">Activity · task log</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1b -->
+    <div id="1b" style="display:flex;flex-direction:column;gap:28px;">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div style="padding:6px 12px;border-radius:999px;background:oklch(0.74 0.16 40);color:#111;font-size:15px;font-weight:700;">1b</div>
+        <div style="font-size:24px;font-weight:600;letter-spacing:-0.01em;">Dashboard-first</div>
+      </div>
+      <div style="display:flex;gap:56px;flex-wrap:wrap;align-items:flex-start;">
+
+        <!-- 1b Home -->
+        <div style="display:flex;flex-direction:column;gap:18px;align-items:center;">
+          <div data-screen-label="1b Home" style="position:relative;width:393px;height:852px;border-radius:56px;overflow:hidden;background:#0b0b0f;box-shadow:0 0 0 10px #1a1a1d,0 0 0 11px #303034,0 40px 80px rgba(0,0,0,0.5);">
+            <sc-if value="{{ glow }}" hint-placeholder-val="{{ true }}">
+              <div style="position:absolute;top:-140px;left:-120px;width:460px;height:460px;border-radius:50%;background:radial-gradient(circle,oklch(0.65 0.19 38 / 0.55),transparent 65%);"></div>
+              <div style="position:absolute;top:-40px;right:-200px;width:440px;height:440px;border-radius:50%;background:radial-gradient(circle,oklch(0.6 0.18 300 / 0.42),transparent 65%);"></div>
+              <div style="position:absolute;top:420px;left:-120px;width:460px;height:460px;border-radius:50%;background:radial-gradient(circle,oklch(0.6 0.14 230 / 0.2),transparent 65%);"></div>
+            </sc-if>
+            <div style="position:absolute;top:0;left:0;right:0;height:54px;display:flex;align-items:center;justify-content:space-between;padding:6px 36px 0 48px;font-size:17px;font-weight:600;z-index:5;"><span>9:41</span><div style="display:flex;gap:6px;align-items:center;"><div style="display:flex;gap:2px;align-items:flex-end;"><div style="width:3px;height:4px;border-radius:1px;background:#fff;"></div><div style="width:3px;height:6px;border-radius:1px;background:#fff;"></div><div style="width:3px;height:9px;border-radius:1px;background:#fff;"></div><div style="width:3px;height:12px;border-radius:1px;background:#fff;"></div></div><div style="width:25px;height:12px;border-radius:4px;border:1px solid rgba(255,255,255,0.4);padding:1.5px;"><div style="width:80%;height:100%;border-radius:2px;background:#fff;"></div></div></div></div>
+            <div style="position:absolute;top:11px;left:50%;margin-left:-62px;width:124px;height:36px;border-radius:18px;background:#000;z-index:6;"></div>
+            <div style="position:absolute;top:66px;left:20px;right:20px;display:flex;flex-direction:column;">
+              <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-top:8px;">
+                <div>
+                  <div style="font-size:13px;font-weight:600;letter-spacing:0.03em;text-transform:uppercase;color:rgba(235,235,245,0.6);">Thursday, Oct 2</div>
+                  <div style="font-size:32px;font-weight:700;letter-spacing:-0.02em;line-height:1.1;margin-top:4px;">Good evening, Sam</div>
+                </div>
+                <div style="width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600;background:rgba(255,255,255,0.1);border:0.5px solid rgba(255,255,255,0.18);">S</div>
+              </div>
+              <div style="align-self:flex-start;display:flex;align-items:center;gap:8px;margin-top:14px;padding:7px 12px 7px 10px;border-radius:999px;font-size:13px;color:rgba(235,235,245,0.8);background:rgba(255,255,255,0.07);border:0.5px solid rgba(255,255,255,0.14);">
+                <div style="width:8px;height:8px;border-radius:50%;background:oklch(0.8 0.17 150);box-shadow:0 0 8px oklch(0.8 0.17 150);"></div>Claw is online · studio-mini
+              </div>
+              <div style="margin-top:20px;border-radius:30px;padding:18px 16px 14px;background:rgba(255,255,255,0.08);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:0.5px solid rgba(255,255,255,0.18);box-shadow:inset 0 1px 0 rgba(255,255,255,0.22),0 20px 40px rgba(0,0,0,0.3);">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,oklch(0.8 0.14 55),oklch(0.62 0.2 28));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;">C</div>
+                  <div style="font-size:15px;font-weight:600;">Claw</div>
+                </div>
+                <div style="font-size:22px;font-weight:500;letter-spacing:-0.01em;line-height:1.25;color:rgba(235,235,245,0.42);margin-top:12px;min-height:56px;">What should I take care of?</div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;">
+                  <div style="display:flex;gap:8px;">
+                    <div style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.1);"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M7 1v12M1 7h12" stroke="#fff" stroke-width="1.8" stroke-linecap="round"></path></svg></div>
+                    <div style="height:36px;padding:0 12px;border-radius:18px;display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;background:rgba(255,255,255,0.1);color:rgba(235,235,245,0.85);">Opus<svg width="9" height="6" viewBox="0 0 9 6"><path d="M1 1l3.5 3.5L8 1" stroke="rgba(235,235,245,0.7)" stroke-width="1.5" fill="none" stroke-linecap="round"></path></svg></div>
+                  </div>
+                  <div style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#f5f5f7;"><svg width="16" height="14" viewBox="0 0 16 14"><path d="M2 5v4M5 2v10M8 4v6M11 1v12M14 5v4" stroke="#111" stroke-width="1.8" stroke-linecap="round"></path></svg></div>
+                </div>
+              </div>
+
+              <div style="font-size:20px;font-weight:700;letter-spacing:-0.01em;margin:26px 2px 10px;">Needs you</div>
+              <div style="border-radius:24px;padding:14px 16px;background:oklch(0.5 0.12 38 / 0.18);border:0.5px solid oklch(0.78 0.14 40 / 0.4);box-shadow:inset 0 1px 0 rgba(255,255,255,0.14);display:flex;align-items:center;gap:12px;">
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:16px;font-weight:600;">Push fix to photo-sync</div>
+                  <div style="font-size:12.5px;font-family:ui-monospace,'SF Mono',Menlo,monospace;color:rgba(235,235,245,0.6);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">git push origin fix/date-parser</div>
+                </div>
+                <div style="height:36px;padding:0 16px;border-radius:18px;display:flex;align-items:center;font-size:15px;font-weight:600;background:#f5f5f7;color:#111;">Review</div>
+              </div>
+
+              <div style="font-size:20px;font-weight:700;letter-spacing:-0.01em;margin:26px 2px 10px;">Running</div>
+              <div style="display:flex;gap:10px;margin:0 -20px;padding:0 20px;overflow:hidden;">
+                <sc-for list="{{ running }}" as="r" hint-placeholder-count="2">
+                  <div style="flex:0 0 220px;border-radius:24px;padding:14px 16px;background:rgba(255,255,255,0.07);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);border:0.5px solid rgba(255,255,255,0.14);box-shadow:inset 0 1px 0 rgba(255,255,255,0.14);">
+                    <div style="font-size:15px;font-weight:600;">{{ r.title }}</div>
+                    <div style="font-size:13px;color:rgba(235,235,245,0.55);margin-top:3px;">{{ r.detail }}</div>
+                    <div style="height:4px;border-radius:2px;background:rgba(255,255,255,0.1);margin-top:14px;overflow:hidden;"><div style="height:100%;border-radius:2px;background:oklch(0.74 0.16 40);width:{{ r.progress }};"></div></div>
+                  </div>
+                </sc-for>
+              </div>
+
+              <div style="font-size:20px;font-weight:700;letter-spacing:-0.01em;margin:26px 2px 10px;">Recent</div>
+              <div style="border-radius:24px;overflow:hidden;background:rgba(255,255,255,0.06);border:0.5px solid rgba(255,255,255,0.12);">
+                <sc-for list="{{ recents }}" as="r" hint-placeholder-count="3">
+                  <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-top:{{ r.border }};">
+                    <div style="flex:1;min-width:0;">
+                      <div style="font-size:16px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ r.title }}</div>
+                      <div style="font-size:13px;color:rgba(235,235,245,0.5);margin-top:2px;">{{ r.time }}</div>
+                    </div>
+                    <svg width="8" height="13" viewBox="0 0 8 13"><path d="M1.5 1.5l5 5-5 5" stroke="rgba(235,235,245,0.3)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="position:absolute;bottom:0;left:0;right:0;height:120px;background:linear-gradient(rgba(11,11,15,0),rgba(11,11,15,0.85) 60%);z-index:3;"></div>
+            <div style="position:absolute;left:16px;right:16px;bottom:28px;display:flex;gap:10px;z-index:4;">
+              <div style="flex:1;height:64px;border-radius:32px;display:flex;padding:5px;background:rgba(255,255,255,0.09);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:0.5px solid rgba(255,255,255,0.16);box-shadow:inset 0 1px 0 rgba(255,255,255,0.2),0 10px 30px rgba(0,0,0,0.35);">
+                <sc-for list="{{ tabsB_home }}" as="t" hint-placeholder-count="4">
+                  <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-radius:27px;font-size:10px;font-weight:600;background:{{ t.bg }};color:{{ t.color }};">{{ t.icon }}<span>{{ t.label }}</span></div>
+                </sc-for>
+              </div>
+              <div style="width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.09);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:0.5px solid rgba(255,255,255,0.16);box-shadow:inset 0 1px 0 rgba(255,255,255,0.2),0 10px 30px rgba(0,0,0,0.35);"><svg width="20" height="20" viewBox="0 0 18 18"><path d="M8 2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4M12.5 2.5l3 3L9 12H6V9z" stroke="#fff" stroke-width="1.6" fill="none" stroke-linejoin="round"></path></svg></div>
+            </div>
+            <div style="position:absolute;bottom:8px;left:50%;margin-left:-67px;width:134px;height:5px;border-radius:3px;background:#fff;z-index:5;"></div>
+          </div>
+          <div style="font-size:15px;color:rgba(235,235,245,0.55);">Home · prompt, approvals, tasks, recents</div>
+        </div>
+
+        <!-- 1b Chat -->
+        <div style="display:flex;flex-direction:column;gap:18px;align-items:center;">
+          <div data-screen-label="1b Chat" style="position:relative;width:393px;height:852px;border-radius:56px;overflow:hidden;background:#0b0b0f;box-shadow:0 0 0 10px #1a1a1d,0 0 0 11px #303034,0 40px 80px rgba(0,0,0,0.5);">
+            <sc-if value="{{ glow }}" hint-placeholder-val="{{ true }}">
+              <div style="position:absolute;top:-160px;right:-140px;width:440px;height:440px;border-radius:50%;background:radial-gradient(circle,oklch(0.65 0.19 38 / 0.45),transparent 65%);"></div>
+              <div style="position:absolute;bottom:-160px;left:-180px;width:460px;height:460px;border-radius:50%;background:radial-gradient(circle,oklch(0.6 0.14 230 / 0.3),transparent 65%);"></div>
+            </sc-if>
+            <div style="position:absolute;top:0;left:0;right:0;height:54px;display:flex;align-items:center;justify-content:space-between;padding:6px 36px 0 48px;font-size:17px;font-weight:600;z-index:5;"><span>9:41</span><div style="display:flex;gap:6px;align-items:center;"><div style="display:flex;gap:2px;align-items:flex-end;"><div style="width:3px;height:4px;border-radius:1px;background:#fff;"></div><div style="width:3px;height:6px;border-radius:1px;background:#fff;"></div><div style="width:3px;height:9px;border-radius:1px;background:#fff;"></div><div style="width:3px;height:12px;border-radius:1px;background:#fff;"></div></div><div style="width:25px;height:12px;border-radius:4px;border:1px solid rgba(255,255,255,0.4);padding:1.5px;"><div style="width:80%;height:100%;border-radius:2px;background:#fff;"></div></div></div></div>
+            <div style="position:absolute;top:11px;left:50%;margin-left:-62px;width:124px;height:36px;border-radius:18px;background:#000;z-index:6;"></div>
+
+            <div style="position:absolute;top:116px;left:16px;right:16px;display:flex;flex-direction:column;gap:14px;">
+              <div style="align-self:flex-end;max-width:82%;padding:11px 15px;border-radius:22px 22px 6px 22px;font-size:16px;line-height:1.38;background:oklch(0.66 0.17 38 / 0.32);border:0.5px solid oklch(0.8 0.12 40 / 0.35);box-shadow:inset 0 1px 0 rgba(255,255,255,0.18);">Find a quiet place to stay in Big Sur this weekend, under $400 a night</div>
+              <div style="align-self:flex-start;display:flex;align-items:center;gap:8px;height:34px;padding:0 12px 0 10px;border-radius:17px;font-size:13px;font-weight:500;color:rgba(235,235,245,0.75);background:rgba(255,255,255,0.07);border:0.5px solid rgba(255,255,255,0.12);">
+                <svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="6" stroke="rgba(235,235,245,0.7)" stroke-width="1.3" fill="none"></circle><path d="M1 7h12M7 1c2 2 2 10 0 12M7 1c-2 2-2 10 0 12" stroke="rgba(235,235,245,0.7)" stroke-width="1.3" fill="none"></path></svg>
+                Browsed 14 listings on 3 sites
+                <svg width="7" height="11" viewBox="0 0 8 13"><path d="M1.5 1.5l5 5-5 5" stroke="rgba(235,235,245,0.5)" stroke-width="2" fill="none" stroke-linecap="round"></path></svg>
+              </div>
+              <div style="font-size:16px;line-height:1.4;">Two options have Saturday and Sunday open. Both are off Highway 1 with no shared walls.</div>
+              <sc-for list="{{ links }}" as="l" hint-placeholder-count="2">
+                <div style="border-radius:22px;overflow:hidden;background:rgba(255,255,255,0.07);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:0.5px solid rgba(255,255,255,0.14);box-shadow:inset 0 1px 0 rgba(255,255,255,0.16);display:flex;">
+                  <div style="width:104px;flex-shrink:0;background:repeating-linear-gradient(135deg,rgba(255,255,255,0.05) 0 8px,rgba(255,255,255,0.09) 8px 16px);display:flex;align-items:center;justify-content:center;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:10px;color:rgba(235,235,245,0.4);">photo</div>
+                  <div style="flex:1;min-width:0;padding:12px 14px;">
+                    <div style="font-size:15px;font-weight:600;line-height:1.3;">{{ l.title }}</div>
+                    <div style="font-size:13px;color:rgba(235,235,245,0.6);margin-top:3px;">{{ l.meta }}</div>
+                    <div style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;color:rgba(235,235,245,0.45);"><div style="width:14px;height:14px;border-radius:4px;background:rgba(255,255,255,0.15);"></div>{{ l.domain }}</div>
+                  </div>
+                </div>
+              </sc-for>
+              <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:20px;background:rgba(255,255,255,0.07);border:0.5px solid rgba(255,255,255,0.14);">
+                <div style="width:34px;height:40px;border-radius:7px;background:rgba(255,255,255,0.12);display:flex;align-items:flex-end;justify-content:center;padding-bottom:5px;font-size:9px;font-weight:700;color:rgba(235,235,245,0.7);">MD</div>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:15px;font-weight:600;">bigsur-options.md</div>
+                  <div style="font-size:13px;color:rgba(235,235,245,0.55);margin-top:2px;">Saved to Obsidian · 2 KB</div>
+                </div>
+                <div style="width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.1);"><svg width="12" height="14" viewBox="0 0 12 14"><path d="M6 1v9M2 6l4 4 4-4M1 13h10" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+              </div>
+            </div>
+
+            <div style="position:absolute;top:0;left:0;right:0;height:120px;background:linear-gradient(rgba(11,11,15,0.85) 55%,rgba(11,11,15,0));z-index:3;"></div>
+            <div style="position:absolute;top:56px;left:16px;right:16px;height:50px;display:flex;align-items:center;justify-content:space-between;z-index:4;">
+              <div style="width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.08);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:0.5px solid rgba(255,255,255,0.16);box-shadow:inset 0 1px 0 rgba(255,255,255,0.18);"><svg width="10" height="17" viewBox="0 0 10 17"><path d="M8.5 1.5l-7 7 7 7" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+                <div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,oklch(0.8 0.14 55),oklch(0.62 0.2 28));display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;">C</div>
+                <div style="font-size:13px;font-weight:600;">Weekend in Big Sur</div>
+              </div>
+              <div style="width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;gap:3px;background:rgba(255,255,255,0.08);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:0.5px solid rgba(255,255,255,0.16);box-shadow:inset 0 1px 0 rgba(255,255,255,0.18);"><div style="width:4px;height:4px;border-radius:50%;background:#fff;"></div><div style="width:4px;height:4px;border-radius:50%;background:#fff;"></div><div style="width:4px;height:4px;border-radius:50%;background:#fff;"></div></div>
+            </div>
+
+            <div style="position:absolute;bottom:0;left:0;right:0;height:130px;background:linear-gradient(rgba(11,11,15,0),rgba(11,11,15,0.9) 60%);z-index:3;"></div>
+            <div style="position:absolute;bottom:30px;left:16px;right:16px;height:54px;border-radius:27px;display:flex;align-items:center;gap:10px;padding:0 7px;z-index:4;background:rgba(255,255,255,0.09);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:0.5px solid rgba(255,255,255,0.16);box-shadow:inset 0 1px 0 rgba(255,255,255,0.2);">
+              <div style="width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.08);"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M7 1v12M1 7h12" stroke="#fff" stroke-width="1.8" stroke-linecap="round"></path></svg></div>
+              <div style="flex:1;font-size:16px;color:rgba(235,235,245,0.4);">Ask a follow-up</div>
+              <div style="width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#f5f5f7;"><svg width="16" height="14" viewBox="0 0 16 14"><path d="M2 5v4M5 2v10M8 4v6M11 1v12M14 5v4" stroke="#111" stroke-width="1.8" stroke-linecap="round"></path></svg></div>
+            </div>
+            <div style="position:absolute;bottom:8px;left:50%;margin-left:-67px;width:134px;height:5px;border-radius:3px;background:#fff;z-index:5;"></div>
+          </div>
+          <div style="font-size:15px;color:rgba(235,235,245,0.55);">Chat · tool chip, link previews, file</div>
+        </div>
+
+        <!-- 1b Skills -->
+        <div style="display:flex;flex-direction:column;gap:18px;align-items:center;">
+          <div data-screen-label="1b Skills" style="position:relative;width:393px;height:852px;border-radius:56px;overflow:hidden;background:#0b0b0f;box-shadow:0 0 0 10px #1a1a1d,0 0 0 11px #303034,0 40px 80px rgba(0,0,0,0.5);">
+            <sc-if value="{{ glow }}" hint-placeholder-val="{{ true }}">
+              <div style="position:absolute;top:-180px;left:-120px;width:440px;height:440px;border-radius:50%;background:radial-gradient(circle,oklch(0.6 0.18 300 / 0.4),transparent 65%);"></div>
+              <div style="position:absolute;top:300px;right:-200px;width:440px;height:440px;border-radius:50%;background:radial-gradient(circle,oklch(0.65 0.19 38 / 0.3),transparent 65%);"></div>
+            </sc-if>
+            <div style="position:absolute;top:0;left:0;right:0;height:54px;display:flex;align-items:center;justify-content:space-between;padding:6px 36px 0 48px;font-size:17px;font-weight:600;z-index:5;"><span>9:41</span><div style="display:flex;gap:6px;align-items:center;"><div style="display:flex;gap:2px;align-items:flex-end;"><div style="width:3px;height:4px;border-radius:1px;background:#fff;"></div><div style="width:3px;height:6px;border-radius:1px;background:#fff;"></div><div style="width:3px;height:9px;border-radius:1px;background:#fff;"></div><div style="width:3px;height:12px;border-radius:1px;background:#fff;"></div></div><div style="width:25px;height:12px;border-radius:4px;border:1px solid rgba(255,255,255,0.4);padding:1.5px;"><div style="width:80%;height:100%;border-radius:2px;background:#fff;"></div></div></div></div>
+            <div style="position:absolute;top:11px;left:50%;margin-left:-62px;width:124px;height:36px;border-radius:18px;background:#000;z-index:6;"></div>
+            <div style="position:absolute;top:62px;left:16px;right:16px;display:flex;flex-direction:column;">
+              <div style="display:flex;justify-content:flex-end;align-items:center;height:44px;">
+                <div style="width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.08);border:0.5px solid rgba(255,255,255,0.14);"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M7 1v12M1 7h12" stroke="#fff" stroke-width="1.8" stroke-linecap="round"></path></svg></div>
+              </div>
+              <div style="font-size:34px;font-weight:700;letter-spacing:-0.02em;margin:6px 4px 12px;">Skills</div>
+              <div style="height:40px;border-radius:20px;display:flex;align-items:center;gap:8px;padding:0 14px;background:rgba(255,255,255,0.08);border:0.5px solid rgba(255,255,255,0.12);font-size:16px;color:rgba(235,235,245,0.4);"><svg width="15" height="15" viewBox="0 0 15 15"><circle cx="6.5" cy="6.5" r="5" stroke="rgba(235,235,245,0.5)" stroke-width="1.6" fill="none"></circle><path d="M10.5 10.5L14 14" stroke="rgba(235,235,245,0.5)" stroke-width="1.6" stroke-linecap="round"></path></svg>Search skills and tools</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px;">
+                <sc-for list="{{ skillsB }}" as="k" hint-placeholder-count="8">
+                  <div style="border-radius:24px;padding:14px;height:132px;display:flex;flex-direction:column;justify-content:space-between;background:rgba(255,255,255,0.07);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:0.5px solid rgba(255,255,255,0.14);box-shadow:inset 0 1px 0 rgba(255,255,255,0.14);opacity:{{ k.opacity }};">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                      <div style="width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;background:{{ k.color }};box-shadow:inset 0 1px 0 rgba(255,255,255,0.3);">{{ k.glyph }}</div>
+                      <div style="width:8px;height:8px;border-radius:50%;margin-top:4px;background:{{ k.dot }};"></div>
+                    </div>
+                    <div>
+                      <div style="font-size:16px;font-weight:600;">{{ k.name }}</div>
+                      <div style="font-size:13px;color:rgba(235,235,245,0.5);margin-top:2px;">{{ k.tools }}</div>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="position:absolute;bottom:0;left:0;right:0;height:120px;background:linear-gradient(rgba(11,11,15,0),rgba(11,11,15,0.85) 60%);z-index:3;"></div>
+            <div style="position:absolute;left:16px;right:16px;bottom:28px;display:flex;gap:10px;z-index:4;">
+              <div style="flex:1;height:64px;border-radius:32px;display:flex;padding:5px;background:rgba(255,255,255,0.09);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:0.5px solid rgba(255,255,255,0.16);box-shadow:inset 0 1px 0 rgba(255,255,255,0.2),0 10px 30px rgba(0,0,0,0.35);">
+                <sc-for list="{{ tabsB_skills }}" as="t" hint-placeholder-count="4">
+                  <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-radius:27px;font-size:10px;font-weight:600;background:{{ t.bg }};color:{{ t.color }};">{{ t.icon }}<span>{{ t.label }}</span></div>
+                </sc-for>
+              </div>
+              <div style="width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.09);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:0.5px solid rgba(255,255,255,0.16);box-shadow:inset 0 1px 0 rgba(255,255,255,0.2),0 10px 30px rgba(0,0,0,0.35);"><svg width="20" height="20" viewBox="0 0 18 18"><path d="M8 2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4M12.5 2.5l3 3L9 12H6V9z" stroke="#fff" stroke-width="1.6" fill="none" stroke-linejoin="round"></path></svg></div>
+            </div>
+            <div style="position:absolute;bottom:8px;left:50%;margin-left:-67px;width:134px;height:5px;border-radius:3px;background:#fff;z-index:5;"></div>
+          </div>
+          <div style="font-size:15px;color:rgba(235,235,245,0.55);">Skills · glass tile grid</div>
+        </div>
+
+        <!-- 1b Activity -->
+        <div style="display:flex;flex-direction:column;gap:18px;align-items:center;">
+          <div data-screen-label="1b Activity" style="position:relative;width:393px;height:852px;border-radius:56px;overflow:hidden;background:#0b0b0f;box-shadow:0 0 0 10px #1a1a1d,0 0 0 11px #303034,0 40px 80px rgba(0,0,0,0.5);">
+            <sc-if value="{{ glow }}" hint-placeholder-val="{{ true }}">
+              <div style="position:absolute;top:-160px;right:-140px;width:440px;height:440px;border-radius:50%;background:radial-gradient(circle,oklch(0.65 0.19 38 / 0.45),transparent 65%);"></div>
+              <div style="position:absolute;top:360px;left:-220px;width:460px;height:460px;border-radius:50%;background:radial-gradient(circle,oklch(0.6 0.18 300 / 0.3),transparent 65%);"></div>
+            </sc-if>
+            <div style="position:absolute;top:0;left:0;right:0;height:54px;display:flex;align-items:center;justify-content:space-between;padding:6px 36px 0 48px;font-size:17px;font-weight:600;z-index:5;"><span>9:41</span><div style="display:flex;gap:6px;align-items:center;"><div style="display:flex;gap:2px;align-items:flex-end;"><div style="width:3px;height:4px;border-radius:1px;background:#fff;"></div><div style="width:3px;height:6px;border-radius:1px;background:#fff;"></div><div style="width:3px;height:9px;border-radius:1px;background:#fff;"></div><div style="width:3px;height:12px;border-radius:1px;background:#fff;"></div></div><div style="width:25px;height:12px;border-radius:4px;border:1px solid rgba(255,255,255,0.4);padding:1.5px;"><div style="width:80%;height:100%;border-radius:2px;background:#fff;"></div></div></div></div>
+            <div style="position:absolute;top:11px;left:50%;margin-left:-62px;width:124px;height:36px;border-radius:18px;background:#000;z-index:6;"></div>
+            <div style="position:absolute;top:62px;left:16px;right:16px;display:flex;flex-direction:column;">
+              <div style="height:44px;"></div>
+              <div style="font-size:34px;font-weight:700;letter-spacing:-0.02em;margin:6px 4px 12px;">Activity</div>
+              <div style="display:flex;height:36px;padding:3px;border-radius:18px;background:rgba(255,255,255,0.08);border:0.5px solid rgba(255,255,255,0.12);">
+                <div style="flex:1;border-radius:15px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;background:rgba(255,255,255,0.18);box-shadow:inset 0 1px 0 rgba(255,255,255,0.2);">Today</div>
+                <div style="flex:1;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:500;color:rgba(235,235,245,0.6);">Scheduled</div>
+              </div>
+              <div style="position:relative;margin-top:20px;display:flex;flex-direction:column;gap:12px;">
+                <div style="position:absolute;left:55px;top:10px;bottom:0;width:1.5px;background:linear-gradient(rgba(255,255,255,0.2),rgba(255,255,255,0.04));"></div>
+                <sc-for list="{{ timeline }}" as="a" hint-placeholder-count="6">
+                  <div style="display:flex;gap:0;align-items:flex-start;">
+                    <div style="width:44px;flex-shrink:0;font-size:12px;font-weight:600;color:rgba(235,235,245,0.45);padding-top:14px;font-variant-numeric:tabular-nums;">{{ a.time }}</div>
+                    <div style="width:24px;flex-shrink:0;display:flex;justify-content:center;padding-top:17px;"><div style="width:11px;height:11px;border-radius:50%;background:{{ a.dot }};box-shadow:0 0 0 3px #0b0b0f,0 0 10px {{ a.dot }};position:relative;"></div></div>
+                    <div style="flex:1;min-width:0;border-radius:20px;padding:11px 14px;background:rgba(255,255,255,0.07);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:0.5px solid {{ a.edge }};box-shadow:inset 0 1px 0 rgba(255,255,255,0.12);">
+                      <div style="font-size:15px;font-weight:600;">{{ a.title }}</div>
+                      <div style="font-size:13px;color:rgba(235,235,245,0.55);margin-top:2px;line-height:1.35;">{{ a.detail }}</div>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="position:absolute;bottom:0;left:0;right:0;height:120px;background:linear-gradient(rgba(11,11,15,0),rgba(11,11,15,0.85) 60%);z-index:3;"></div>
+            <div style="position:absolute;left:16px;right:16px;bottom:28px;display:flex;gap:10px;z-index:4;">
+              <div style="flex:1;height:64px;border-radius:32px;display:flex;padding:5px;background:rgba(255,255,255,0.09);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:0.5px solid rgba(255,255,255,0.16);box-shadow:inset 0 1px 0 rgba(255,255,255,0.2),0 10px 30px rgba(0,0,0,0.35);">
+                <sc-for list="{{ tabsB_activity }}" as="t" hint-placeholder-count="4">
+                  <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-radius:27px;font-size:10px;font-weight:600;background:{{ t.bg }};color:{{ t.color }};">{{ t.icon }}<span>{{ t.label }}</span></div>
+                </sc-for>
+              </div>
+              <div style="width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.09);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:0.5px solid rgba(255,255,255,0.16);box-shadow:inset 0 1px 0 rgba(255,255,255,0.2),0 10px 30px rgba(0,0,0,0.35);"><svg width="20" height="20" viewBox="0 0 18 18"><path d="M8 2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4M12.5 2.5l3 3L9 12H6V9z" stroke="#fff" stroke-width="1.6" fill="none" stroke-linejoin="round"></path></svg></div>
+            </div>
+            <div style="position:absolute;bottom:8px;left:50%;margin-left:-67px;width:134px;height:5px;border-radius:3px;background:#fff;z-index:5;"></div>
+          </div>
+          <div style="font-size:15px;color:rgba(235,235,245,0.55);">Activity · timeline</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showGlow&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  icon(name) {
+    const h = React.createElement;
+    const p = { width: 24, height: 24, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.9, strokeLinecap: 'round', strokeLinejoin: 'round' };
+    const paths = {
+      chat: [h('path', { key: 1, d: 'M5 4h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-8l-5 4v-4H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z' })],
+      history: [h('circle', { key: 1, cx: 12, cy: 12, r: 9 }), h('path', { key: 2, d: 'M12 7v5l3 2' })],
+      skills: [h('rect', { key: 1, x: 3.5, y: 3.5, width: 7, height: 7, rx: 2 }), h('rect', { key: 2, x: 13.5, y: 3.5, width: 7, height: 7, rx: 2 }), h('rect', { key: 3, x: 3.5, y: 13.5, width: 7, height: 7, rx: 2 }), h('rect', { key: 4, x: 13.5, y: 13.5, width: 7, height: 7, rx: 2 })],
+      activity: [h('path', { key: 1, d: 'M3 12h4l3-8 4 16 3-8h4' })],
+      home: [h('path', { key: 1, d: 'M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z' })]
+    };
+    return h('svg', p, paths[name]);
+  }
+  tabs(set, active) {
+    const defs = set === 'a'
+      ? [['chat', 'Claw'], ['history', 'History'], ['skills', 'Skills'], ['activity', 'Activity']]
+      : [['home', 'Home'], ['chat', 'Chats'], ['skills', 'Skills'], ['activity', 'Activity']];
+    return defs.map(([k, label]) => ({
+      label, icon: this.icon(k),
+      bg: k === active ? 'rgba(255,255,255,0.16)' : 'transparent',
+      color: k === active ? 'oklch(0.82 0.14 42)' : 'rgba(235,235,245,0.8)'
+    }));
+  }
+  rows(list) {
+    return list.map((r, i) => ({ ...r, border: i ? '0.5px solid rgba(255,255,255,0.1)' : 'none' }));
+  }
+  renderVals() {
+    const dim = 'rgba(235,235,245,0.45)', on = '#f5f5f7';
+    const A = 'oklch(0.74 0.16 40)', G = 'oklch(0.8 0.17 150)', mute = 'rgba(235,235,245,0.3)';
+    const chip = (t) => t === 'run'
+      ? { chip: 'Running', chipBg: 'oklch(0.8 0.17 150 / 0.15)', chipColor: G }
+      : t === 'ask' ? { chip: 'Needs approval', chipBg: 'oklch(0.74 0.16 40 / 0.18)', chipColor: 'oklch(0.82 0.13 45)' } : {};
+    const sk = (glyph, name, desc, color, enabled) => ({ glyph, name, desc, color, track: enabled ? '#34c759' : 'rgba(120,120,128,0.36)', knob: enabled ? 'flex-end' : 'flex-start' });
+    return {
+      glow: this.props.showGlow ?? true,
+      icChat: this.icon('chat'),
+      steps: [
+        { text: 'Cloned photo-sync', done: true, color: on },
+        { text: 'Ran tests · 4 failing', done: true, color: on },
+        { text: 'Patching date parser', active: true, color: on },
+        { text: 'Re-run CI', pending: true, color: dim },
+        { text: 'Open pull request', pending: true, color: dim }
+      ],
+      diff: [
+        { sign: ' ', text: 'func parse(_ s: String) -> Date? {', bg: 'transparent', color: 'rgba(235,235,245,0.6)' },
+        { sign: '−', text: '  let fmt = DateFormatter()', bg: 'oklch(0.6 0.17 25 / 0.16)', color: 'oklch(0.8 0.1 25)' },
+        { sign: '+', text: '  let fmt = ISO8601DateFormatter()', bg: 'oklch(0.7 0.16 150 / 0.14)', color: 'oklch(0.86 0.12 150)' },
+        { sign: '+', text: '  fmt.formatOptions.insert(.withFractionalSeconds)', bg: 'oklch(0.7 0.16 150 / 0.14)', color: 'oklch(0.86 0.12 150)' }
+      ],
+      history: [
+        { label: 'Today', items: this.rows([
+          { title: 'photo-sync CI cleanup', preview: 'Push the fix and open a PR?', time: '9:38 PM', ...chip('ask') },
+          { title: 'Watch flight UA 914', preview: 'Checking gate status every 15 minutes', time: '6:10 PM', ...chip('run') },
+          { title: 'Weekend in Big Sur', preview: 'Saved comparison to Obsidian', time: '4:52 PM' }
+        ]) },
+        { label: 'Yesterday', items: this.rows([
+          { title: 'Inbox triage', preview: 'Archived 41, flagged 3 for you', time: 'Wed' },
+          { title: 'Quarterly invoices', preview: 'Drafted 6 invoices in Stripe', time: 'Wed' }
+        ]) }
+      ],
+      skills: this.rows([
+        sk('G', 'GitHub', 'Repos, PRs, issues, Actions', 'oklch(0.4 0.02 280)', true),
+        sk('>', 'Shell', 'Run commands with approval', 'oklch(0.35 0.01 280)', true),
+        sk('B', 'Browser', 'Search, read and fill forms', 'oklch(0.6 0.15 250)', true),
+        sk('C', 'Calendar', 'Read and create events', 'oklch(0.62 0.2 25)', true),
+        sk('M', 'Gmail', 'Read, label, draft replies', 'oklch(0.6 0.18 30)', false),
+        sk('O', 'Obsidian', 'Notes vault on studio-mini', 'oklch(0.55 0.2 295)', true),
+        sk('H', 'Home Assistant', 'Lights, locks, climate', 'oklch(0.65 0.13 220)', false),
+        sk('S', 'Spotify', 'Playback and playlists', 'oklch(0.68 0.18 150)', false)
+      ]),
+      filters: [['All', true], ['Running'], ['Needs you'], ['Done']].map(([label, sel]) => ({ label, bg: sel ? '#f5f5f7' : 'rgba(255,255,255,0.08)', color: sel ? '#111' : 'rgba(235,235,245,0.85)' })),
+      activityA: [
+        { label: 'Needs you', edge: 'oklch(0.78 0.14 40 / 0.4)', items: this.rows([
+          { title: 'Approve git push', detail: 'photo-sync · fix/date-parser', time: 'now', dot: A }
+        ]) },
+        { label: 'Running', edge: 'rgba(255,255,255,0.12)', items: this.rows([
+          { title: 'Patching date parser', detail: 'photo-sync · step 3 of 5', time: '1m', dot: G, progress: '60%' },
+          { title: 'Watching flight UA 914', detail: 'Next check 9:45 PM via iMessage', time: '3h', dot: G, progress: '35%' }
+        ]) },
+        { label: 'Earlier', edge: 'rgba(255,255,255,0.12)', items: this.rows([
+          { title: 'Saved Big Sur options', detail: 'Obsidian · bigsur-options.md', time: '4:52', dot: mute },
+          { title: 'Morning briefing sent', detail: 'Telegram · 3 meetings, 2 deliveries', time: '7:00', dot: mute }
+        ]) }
+      ],
+      tabsA_history: this.tabs('a', 'history'),
+      tabsA_skills: this.tabs('a', 'skills'),
+      tabsA_activity: this.tabs('a', 'activity'),
+      running: [
+        { title: 'photo-sync CI', detail: 'Patching date parser', progress: '60%' },
+        { title: 'Flight UA 914', detail: 'On time · gate C12', progress: '35%' }
+      ],
+      recents: this.rows([
+        { title: 'Weekend in Big Sur', time: '4:52 PM' },
+        { title: 'Inbox triage', time: 'Yesterday' },
+        { title: 'Quarterly invoices', time: 'Yesterday' }
+      ]),
+      links: [
+        { title: "Deetjen's Big Sur Inn", meta: '$295 / night · Garden room', domain: 'deetjens.com' },
+        { title: 'Glen Oaks Cabins', meta: '$380 / night · Redwood cabin', domain: 'glenoaksbigsur.com' }
+      ],
+      skillsB: [
+        ['G', 'GitHub', '14 tools', 'oklch(0.4 0.02 280)', 1], ['>', 'Shell', '3 tools', 'oklch(0.35 0.01 280)', 1],
+        ['B', 'Browser', '9 tools', 'oklch(0.6 0.15 250)', 1], ['C', 'Calendar', '6 tools', 'oklch(0.62 0.2 25)', 1],
+        ['O', 'Obsidian', '5 tools', 'oklch(0.55 0.2 295)', 1], ['M', 'Gmail', '8 tools', 'oklch(0.6 0.18 30)', 0],
+        ['H', 'Home Assistant', '12 tools', 'oklch(0.65 0.13 220)', 0], ['S', 'Spotify', '7 tools', 'oklch(0.68 0.18 150)', 0]
+      ].map(([glyph, name, tools, color, en]) => ({ glyph, name, color, tools: en ? tools : tools + ' · Off', dot: en ? G : 'rgba(235,235,245,0.25)', opacity: en ? 1 : 0.6 })),
+      timeline: [
+        { time: '9:41', title: 'Approve git push', detail: 'photo-sync is waiting on you', dot: A, edge: 'oklch(0.78 0.14 40 / 0.45)' },
+        { time: '9:36', title: 'Patching date parser', detail: '2 files changed, re-running tests', dot: G, edge: 'rgba(255,255,255,0.14)' },
+        { time: '6:10', title: 'Watching UA 914', detail: 'Checks every 15 min', dot: G, edge: 'rgba(255,255,255,0.14)' },
+        { time: '4:52', title: 'Saved Big Sur options', detail: 'bigsur-options.md in Obsidian', dot: mute, edge: 'rgba(255,255,255,0.14)' },
+        { time: '2:15', title: 'Drafted 6 invoices', detail: 'Stripe · ready to send', dot: mute, edge: 'rgba(255,255,255,0.14)' },
+        { time: '7:00', title: 'Morning briefing', detail: 'Sent to Telegram', dot: mute, edge: 'rgba(255,255,255,0.14)' }
+      ],
+      tabsB_home: this.tabs('b', 'home'),
+      tabsB_skills: this.tabs('b', 'skills'),
+      tabsB_activity: this.tabs('b', 'activity')
+    };
+  }
+}
+</script>
+</body>
+</html>

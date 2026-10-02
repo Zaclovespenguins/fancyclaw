@@ -30,11 +30,12 @@ final class PolishTests: XCTestCase {
         app.buttons["Remove Notes.txt"].tap()
         XCTAssertTrue(app.staticTexts["Start a conversation"].exists)
         try audit(app)
-        app.buttons["chat.sessions"].tap()
-        XCTAssertTrue(app.navigationBars["Chats"].waitForExistence(timeout: 5))
-        waitForDrawer(app)
+        app.openChatsTab()
+        XCTAssertTrue(app.sessionRow(titled: "Main chat").waitForExistence(timeout: 5))
+        waitForStableFrame(app.sessionRow(titled: "Main chat"))
+        waitForStableFrame(app.searchFields["Search chats"])
         try audit(app)
-        capture(app, "Chats drawer — light")
+        capture(app, "Chats tab — light")
     }
 
     @MainActor
@@ -45,11 +46,12 @@ final class PolishTests: XCTestCase {
         capture(app, "Approval — dark XXL")
         app.buttons["approval.allow-once.demo-approval"].tap()
         XCTAssertTrue(app.staticTexts["Approved once"].waitForExistence(timeout: 5))
-        app.buttons["chat.sessions"].tap()
-        XCTAssertTrue(app.navigationBars["Chats"].waitForExistence(timeout: 5))
-        waitForDrawer(app)
+        app.openChatsTab()
+        XCTAssertTrue(app.sessionRow(titled: "Main chat").waitForExistence(timeout: 5))
+        waitForStableFrame(app.sessionRow(titled: "Main chat"))
+        waitForStableFrame(app.searchFields["Search chats"])
         try audit(app)
-        capture(app, "Chats drawer — dark XXL")
+        capture(app, "Chats tab — dark XXL")
         app.terminate()
         app.launchArguments = ["-OnboardingPreview", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryXXL", "-PolishDark"]
         app.launch()
@@ -77,6 +79,34 @@ final class PolishTests: XCTestCase {
     }
 
     @MainActor
+    func testHomeAndSettingsAccessibility() throws {
+        for largeDark in [false, true] {
+            let app = launch("-DemoConversation", largeDark: largeDark)
+            let suffix = largeDark ? "dark XXL" : "light"
+            XCTAssertTrue(app.textFields["chat.composer"].waitForExistence(timeout: 10))
+            app.goBackToTab()
+            XCTAssertTrue(app.buttons["home.settings"].waitForExistence(timeout: 5))
+            waitForStableFrame(app.buttons["home.settings"])
+            try audit(app)
+            capture(app, "Home placeholder — \(suffix)")
+            app.buttons["home.settings"].tap()
+            XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+            try audit(app)
+            capture(app, "Settings — \(suffix)")
+            app.swipeUp()
+            capture(app, "Settings about — \(suffix)")
+            app.goBackToTab()
+            for tab in ["Skills", "Activity"] {
+                app.selectTab(tab)
+                XCTAssertTrue(app.navigationBars[tab].waitForExistence(timeout: 5))
+                try audit(app)
+                capture(app, "\(tab) placeholder — \(suffix)")
+            }
+            app.terminate()
+        }
+    }
+
+    @MainActor
     func testLaunchPerformance() {
         let app = XCUIApplication()
         app.launchArguments = ["-OnboardingPreview"]
@@ -99,17 +129,16 @@ final class PolishTests: XCTestCase {
     }
 
     @MainActor
-    private func waitForDrawer(_ app: XCUIApplication) {
-        // Navigation elements exist before the sheet's presentation animation finishes.
-        let done = app.buttons["Done"]
+    private func waitForStableFrame(_ element: XCUIElement) {
+        // Elements exist before a navigation transition finishes; audit only once the frame settles.
         var lastFrame = CGRect.zero
         var unchangedSince = Date.now
         let stable = NSPredicate { _, _ in
-            let frame = done.frame
+            let frame = element.frame
             if frame != lastFrame { lastFrame = frame; unchangedSince = .now }
-            return done.isHittable && Date.now.timeIntervalSince(unchangedSince) > 1
+            return element.isHittable && Date.now.timeIntervalSince(unchangedSince) > 1
         }
-        expectation(for: stable, evaluatedWith: done)
+        expectation(for: stable, evaluatedWith: element)
         waitForExpectations(timeout: 5)
     }
 

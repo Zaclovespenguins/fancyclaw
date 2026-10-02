@@ -15,6 +15,10 @@ final class ChatTests: XCTestCase {
         XCTAssertTrue(connectButton.waitForExistence(timeout: 10))
         connectButton.tap()
 
+        // Connecting lands on Home; the compose button starts and pushes a new chat.
+        XCTAssertTrue(app.composeButton.waitForExistence(timeout: 10))
+        app.composeButton.tap()
+
         let composer = app.textFields["chat.composer"]
         XCTAssertTrue(composer.waitForExistence(timeout: 10))
         composer.tap()

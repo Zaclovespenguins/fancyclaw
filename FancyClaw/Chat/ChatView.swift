@@ -8,16 +8,14 @@ struct ChatView: View {
     @Bindable var store: ConversationStore
     let sessions: SessionStore?
     let approvals: ApprovalStore?
-    let onSelectSession: (String) async -> Void
     let onNewChat: () async -> Void
     let connectionStatus: String
-    let onDisconnect: () -> Void
-    let onReconnect: () -> Void
+    /// An approval to scroll to when the chat opens (approval Review).
+    let focusApproval: String?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var scrollPosition = ScrollPosition(idType: String.self)
     @State private var isFollowingLatest = true
-    @State private var showingSessions = false
     @State private var isPaging = false
 
     init(
@@ -25,19 +23,15 @@ struct ChatView: View {
         sessions: SessionStore? = nil,
         approvals: ApprovalStore? = nil,
         connectionStatus: String = "Connected",
-        onDisconnect: @escaping () -> Void = {},
-        onReconnect: @escaping () -> Void = {},
-        onSelectSession: @escaping (String) async -> Void = { _ in },
+        focusApproval: String? = nil,
         onNewChat: @escaping () async -> Void = {}
     ) {
         self.store = store
         self.sessions = sessions
         self.approvals = approvals
-        self.onSelectSession = onSelectSession
         self.onNewChat = onNewChat
         self.connectionStatus = connectionStatus
-        self.onDisconnect = onDisconnect
-        self.onReconnect = onReconnect
+        self.focusApproval = focusApproval
     }
 
     var body: some View {
@@ -55,7 +49,7 @@ struct ChatView: View {
                         systemImage: "bubble.left.and.bubble.right",
                         description: Text(connectionStatus == "Connected"
                             ? "Send a message to your OpenClaw assistant."
-                            : "Reconnect from the connection menu to load this chat.")
+                            : "Reconnect from Settings to load this chat.")
                     )
                     .frame(maxWidth: .infinity, minHeight: 360)
                     .accessibilityIdentifier("chat.emptyState")
@@ -122,33 +116,14 @@ struct ChatView: View {
         }
         .navigationTitle(sessions?.sessions.first(where: { $0.key == store.sessionKey })?.title ?? "FancyClaw")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button { showingSessions = true } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: "sidebar.left")
-                        if let count = approvals?.pendingCount(), count > 0 {
-                            Circle().fill(.tint).frame(width: 8, height: 8)
-                                .accessibilityHidden(true)
-                        }
-                    }
-                }
-                    .accessibilityLabel("Chats")
-                    .accessibilityValue("\(approvals?.pendingCount() ?? 0) pending command approvals")
-                    .accessibilityIdentifier("chat.sessions")
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                ChatConnectionMenu(status: connectionStatus, onDisconnect: onDisconnect, onReconnect: onReconnect)
-            }
-        }
-        .sheet(isPresented: $showingSessions) {
-            if let sessions {
-                SessionsDrawer(store: sessions, approvals: approvals, selectedKey: store.sessionKey,
-                    onSelect: onSelectSession, onNewChat: onNewChat)
-            }
-        }
         .task {
             await store.start()
+        }
+        .task(id: focusApproval) {
+            guard let focusApproval else { return }
+            // Approval Review: stop following the latest message and bring the card into view.
+            isFollowingLatest = false
+            scrollPosition.scrollTo(id: "approval:\(focusApproval)", anchor: .center)
         }
     }
 

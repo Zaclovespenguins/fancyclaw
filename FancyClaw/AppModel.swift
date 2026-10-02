@@ -13,7 +13,11 @@ import TestSupport
 
 @Observable
 final class AppModel {
+    /// The most recently opened conversation. Intents and the demo modes use it; chat screens render the store their route names.
     private(set) var conversation: ConversationStore?
+    let router = AppRouter()
+    /// `hello.server.version` from the latest handshake, shown in Settings.
+    private(set) var gatewayVersion: String?
     private(set) var sessions: SessionStore?
     private(set) var approvals: ApprovalStore?
     private var cache: TranscriptCache?
@@ -65,24 +69,40 @@ final class AppModel {
                 isTestMode = true
                 return
             }
-            if ProcessInfo.processInfo.arguments.contains("-FakeGateway") || ProcessInfo.processInfo.arguments.contains("-DemoConversation") || ProcessInfo.processInfo.arguments.contains("-DemoAttachments") || ProcessInfo.processInfo.arguments.contains("-DemoApprovals") || ProcessInfo.processInfo.arguments.contains("-DemoSystemIntegration") {
+            let arguments = ProcessInfo.processInfo.arguments
+            let demoModes = ["-DemoConversation", "-DemoAttachments", "-DemoApprovals", "-DemoSystemIntegration", "-DemoOffline"]
+            let isDemo = demoModes.contains(where: arguments.contains)
+            if arguments.contains("-FakeGateway") || isDemo {
                 isTestMode = true
                 let hello = try Fixtures.decode(ResponseFrame<HelloOK>.self, from: "hello-ok.res").payload
                 guard let hello else { throw ConnectionError.missingPayload }
-                let fake = FakeGateway(replies: Array(repeating: .hello(hello), count: 30))
+                var replies = Array(repeating: FakeGateway.Reply.hello(hello), count: 30)
+                if arguments.contains("-DemoOffline") {
+                    // The first recovery attempt is refused as non-retryable, leaving the app offline until Reconnect.
+                    replies.insert(.failure(.init(code: .forbidden, message: "The demo Gateway refused to reconnect.")), at: 1)
+                }
+                let fake = FakeGateway(replies: replies)
                 fake.streamChatReply("Hello from FakeGateway.")
                 fake.enableSessions()
                 self.fake = fake
                 initialProfile = GatewayProfile(url: try await fake.start(), token: "test-token")
-                if (ProcessInfo.processInfo.arguments.contains("-DemoConversation") || ProcessInfo.processInfo.arguments.contains("-DemoAttachments") || ProcessInfo.processInfo.arguments.contains("-DemoApprovals") || ProcessInfo.processInfo.arguments.contains("-DemoSystemIntegration")), let initialProfile {
+                if isDemo, let initialProfile {
                     let connection = GatewayConnection(identity: .generate())
                     let hello = try await connection.connect(to: initialProfile.url, token: initialProfile.token)
                     await activate(profile: initialProfile, connection: connection, hello: hello)
-                    if ProcessInfo.processInfo.arguments.contains("-DemoSystemIntegration") {
+                    if arguments.contains("-DemoOffline") {
+                        // Drop after launch-time foreground/reachability updates settle; those would otherwise
+                        // retry past the refused attempt and reconnect on their own.
+                        Task {
+                            try? await Task.sleep(for: .seconds(3))
+                            fake.dropConnections()
+                        }
+                        return
+                    } else if arguments.contains("-DemoSystemIntegration") {
                         await seedSystemDemo()
-                    } else if ProcessInfo.processInfo.arguments.contains("-DemoApprovals") {
+                    } else if arguments.contains("-DemoApprovals") {
                         await seedApprovalDemo()
-                    } else if ProcessInfo.processInfo.arguments.contains("-DemoAttachments") {
+                    } else if arguments.contains("-DemoAttachments") {
                         let pipeline = AttachmentPipeline()
                         let image = try await pipeline.prepare(data: AttachmentDemo.imageData(), fileName: "Coast.heic",
                                                                imageRequired: true, limits: hello.policy.attachments)
@@ -90,6 +110,8 @@ final class AppModel {
                                                               limits: hello.policy.attachments)
                         conversation?.draftAttachments = [image, file]
                     } else { await seedRichDemo() }
+                    // Demo modes show the seeded main chat pushed on Home.
+                    await open(sessionKey: SessionKey.main.rawValue)
                 }
                 return
             }
@@ -161,6 +183,7 @@ final class AppModel {
             configure(profile: profile, connection: connection)
         }
         status = .connected
+        gatewayVersion = hello.server.version
         await runActivities?.start()
         approvals?.updateScopes(hello.auth.scopes)
         await approvals?.start()
@@ -237,6 +260,32 @@ final class AppModel {
         await store.refreshHistory()
     }
 
+    /// Selects the session's store and pushes its chat on the destination tab, then loads it.
+    func open(sessionKey key: String, focusApproval: String? = nil) async {
+        guard let store = conversationStore(for: key) else { return }
+        conversation = store
+        router.openChat(sessionKey: key, focusApproval: focusApproval)
+        await store.start()
+        await store.refreshHistory()
+    }
+
+    /// Approval Review: opens the approval's chat focused on its card. Returns false when it names no session.
+    @discardableResult
+    func review(_ approval: ConversationApproval) async -> Bool {
+        guard let key = approval.sessionKey, !key.isEmpty else { return false }
+        await open(sessionKey: key, focusApproval: approval.id)
+        return true
+    }
+
+    /// The existing store for a routed chat, without creating one (safe to call from a view body).
+    func existingStore(for key: String) -> ConversationStore? { conversations[key] }
+
+    /// Profile host (and port, when explicit) for Settings.
+    var gatewayHost: String? {
+        guard let url = initialProfile?.url, let host = url.host() else { return nil }
+        return url.port.map { "\(host):\($0)" } ?? host
+    }
+
     private func conversationStore(for key: String) -> ConversationStore? {
         guard let connection else { return nil }
         let store = conversations[key] ?? ConversationStore(connection: connection, sessionKey: key, cache: cache, gatewayURL: initialProfile?.url)
@@ -246,7 +295,7 @@ final class AppModel {
     }
 
     func newChat() async {
-        if let key = await sessions?.create() { await selectSession(key) }
+        if let key = await sessions?.create() { await open(sessionKey: key) }
     }
 
     private func trackHistoryRuns(in store: ConversationStore) {
@@ -274,8 +323,8 @@ final class AppModel {
 
     func askFromIntent(_ text: String) async throws -> String {
         try await requireIntentConnection()
-        await selectSession(SessionKey.main.rawValue)
-        guard let conversation else { throw IntentError.notConnected }
+        await open(sessionKey: SessionKey.main.rawValue)
+        guard let conversation = existingStore(for: SessionKey.main.rawValue) else { throw IntentError.notConnected }
         return try await conversation.ask(text)
     }
 
@@ -284,14 +333,14 @@ final class AppModel {
         guard let sessions, let key = await sessions.create() else {
             throw IntentError.failed(sessions?.errorMessage ?? "Couldn’t create a chat.")
         }
-        await selectSession(key)
+        await open(sessionKey: key)
     }
 
     func openSessionFromIntent(_ entity: SessionEntity) async throws {
         await prepare()
         guard connection != nil else { throw IntentError.notConnected }
         guard try cachedIntentSessions().contains(where: { $0.id == entity.id }) else { throw IntentError.sessionUnavailable }
-        await selectSession(entity.sessionKey)
+        await open(sessionKey: entity.sessionKey)
     }
 
     func openActivityURL(_ url: URL) async {
@@ -308,9 +357,16 @@ final class AppModel {
     private func invalidateSession(_ key: String) async {
         await runActivities?.reconcile(sessionKey: key, activeRunIDs: [])
         conversations.removeValue(forKey: key)?.invalidate()
-        guard conversation?.sessionKey == key else { return }
-        let next = sessions?.sessions.contains(where: { $0.key == key }) == true ? key : SessionKey.main.rawValue
-        await selectSession(next)
+        let stillExists = sessions?.sessions.contains(where: { $0.key == key }) == true
+        let isRouted = router.openSessionKeys.contains(key)
+        // A deleted chat leaves every stack; a reset one stays pushed and gets a fresh store.
+        if !stillExists { router.closeChats(for: key) }
+        if conversation?.sessionKey == key {
+            await selectSession(stillExists ? key : SessionKey.main.rawValue)
+        } else if stillExists && isRouted, let store = conversationStore(for: key) {
+            await store.start()
+            await store.refreshHistory()
+        }
     }
 
     func reconnect() async {
@@ -356,6 +412,8 @@ final class AppModel {
         approvals = nil
         sessions = nil
         conversation = nil
+        gatewayVersion = nil
+        router.reset()
         cache = nil
         lifecycle = nil
         connection = nil
