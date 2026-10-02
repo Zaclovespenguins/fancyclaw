@@ -42,6 +42,12 @@ extension View {
         return glassEffect(glass, in: shape)
     }
 
+    /// A flat surface: `fill` over an opaque theme base, so text on it keeps a predictable contrast even over
+    /// the ambient glow. `fill` defaults to a faint tint of the primary text color.
+    public func surface<S: Shape>(in shape: S, fill: Color? = nil, opacity: Double = 0.08) -> some View {
+        modifier(ThemedSurface(shape: shape, fill: fill, opacity: opacity))
+    }
+
     /// Section header styling (design 20 bold → `.title3.bold()`).
     public func sectionHeader() -> some View {
         font(.title3.bold())
@@ -126,8 +132,25 @@ public struct AgentAvatar: View {
                         Image(systemName: "sparkles").font(.system(size: size * 0.42, weight: .semibold))
                     }
                 }
-                .foregroundStyle(.white)
+                // Dark glyph: white on the orange gradient fails contrast.
+                .foregroundStyle(theme.textOnAvatar)
             }
             .accessibilityHidden(true)
+    }
+}
+
+private struct ThemedSurface<S: Shape>: ViewModifier {
+    @Environment(\.appTheme) private var theme
+    let shape: S
+    let fill: Color?
+    let opacity: Double
+
+    func body(content: Content) -> some View {
+        content.background {
+            ZStack {
+                shape.fill(theme.bg.color)
+                shape.fill((fill ?? theme.textPrimary.color).opacity(opacity))
+            }
+        }
     }
 }

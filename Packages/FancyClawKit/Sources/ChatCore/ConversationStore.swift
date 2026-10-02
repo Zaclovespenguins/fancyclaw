@@ -613,6 +613,11 @@ public final class ConversationStore {
         try await connection.imageData(sessionKey: sessionKey, media: media)
     }
 
+    /// Downloads an assistant file through the Gateway media path. Bytes are never cached.
+    public func fileData(_ media: ContentBlock.Media) async throws -> Data {
+        try await connection.fileData(sessionKey: sessionKey, media: media)
+    }
+
     private func flushStreaming() {
         for (runID, var row) in pendingAssistantMessages {
             row.id = assistantMessageID(for: runID)

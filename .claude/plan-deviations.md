@@ -220,3 +220,4 @@ Fixes from `debugging/code-review-2026-10-01.md`; details in the four `debugging
 Per-slice deviations and verification for the layout redesign (`layout_redesign.md`, `Future_features.md`) live under `.claude/deviations/`.
 
 - R1 Foundation (theme, tab root, routing, Settings): `.claude/deviations/redesign-r1-foundation.md`
+- R2 Chat restyle (top bar, messages, tool chip, file card, approval card, composer, approval focus fix): `.claude/deviations/redesign-r2-chat.md`

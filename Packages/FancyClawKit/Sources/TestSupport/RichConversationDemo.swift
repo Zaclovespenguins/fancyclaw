@@ -29,7 +29,12 @@ public enum RichConversationDemo {
          The energy relation is $E = mc^2$.
 
          $$\sum_{i=1}^{n} i = \frac{n(n+1)}{2}$$
-         """#)], metadata: .init(id: "demo-rich"))]
+         """#)], metadata: .init(id: "demo-rich")),
+         ChatMessage(role: .assistant, content: [
+            .text("I saved the summary for you."),
+            .media(.init(kind: .file, mimeType: "text/markdown", fileName: "gateway-summary.md",
+                         url: "/api/chat/media/demo/summary", sizeBytes: 2048))
+         ], metadata: .init(id: "demo-file"))]
     }
 
     public static func partialStream(sessionKey: String) -> GatewayEventFrame {

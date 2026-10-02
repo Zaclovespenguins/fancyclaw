@@ -100,6 +100,8 @@ public struct AppTheme: Sendable {
     public var glowBlue: ThemeColor
     public var avatarStart: ThemeColor
     public var avatarEnd: ThemeColor
+    /// The initial drawn on the avatar gradient; dark in both appearances because the gradient is light.
+    public var textOnAvatar: Color { Color(red: 0.11, green: 0.105, blue: 0.12) }
 
     public static let coral = AppTheme(
         id: .coral,

@@ -42,6 +42,7 @@ final class SessionsTests: XCTestCase {
         XCTAssertTrue(app.sessionRow(titled: "Main chat").waitForExistence(timeout: 5))
         // Opening a row pushes that chat on the Chats tab.
         app.sessionRow(titled: "Main chat").tap()
-        XCTAssertTrue(app.buttons["chat.tool.demo-exec"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "chat.toolchip.")).firstMatch
+            .waitForExistence(timeout: 10))
     }
 }

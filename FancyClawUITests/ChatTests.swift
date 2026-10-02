@@ -66,8 +66,14 @@ final class ChatTests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-DemoConversation"]
         app.launch()
+        // One chip summarizes the message's tools; expanding it lists each tool.
+        let chip = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "chat.toolchip.")).firstMatch
+        XCTAssertTrue(chip.waitForExistence(timeout: 10))
+        XCTAssertTrue(chip.label.hasPrefix("Using 3 tools"), chip.label)
         let tool = app.buttons["chat.tool.demo-exec"]
-        XCTAssertTrue(tool.waitForExistence(timeout: 10))
+        XCTAssertFalse(tool.exists)
+        chip.tap()
+        XCTAssertTrue(tool.waitForExistence(timeout: 5))
         tool.tap()
         XCTAssertEqual(tool.value as? String, "Expanded")
         XCTAssertTrue(app.staticTexts["Swift 6.4"].exists)
@@ -77,6 +83,8 @@ final class ChatTests: XCTestCase {
         add(expanded)
         tool.tap()
         XCTAssertEqual(tool.value as? String, "Collapsed")
+        chip.tap()
+        XCTAssertFalse(tool.exists)
 
         let copy = app.buttons.matching(identifier: "markdown.copyCode").allElementsBoundByIndex.last!
         copy.tap()
@@ -95,4 +103,40 @@ final class ChatTests: XCTestCase {
         add(report)
     }
 
+    @MainActor
+    func testTopBarMenusAndFileCard() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-DemoConversation"]
+        app.launch()
+        let more = app.buttons["chat.menu"]
+        XCTAssertTrue(more.waitForExistence(timeout: 10))
+        more.tap()
+        XCTAssertTrue(app.buttons["Rename"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["Delete"].exists)
+        // Reset asks for confirmation; cancel it.
+        app.buttons["Reset"].tap()
+        XCTAssertTrue(app.buttons["Reset chat"].waitForExistence(timeout: 3))
+        let cancel = app.buttons["Cancel"].firstMatch
+        if cancel.waitForExistence(timeout: 2) { cancel.tap() }
+        else { app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15)).tap() }
+        XCTAssertTrue(app.buttons["chat.agentModel"].waitForExistence(timeout: 3))
+
+        // Tapping the title offers the agent and model choices.
+        let title = app.buttons["chat.agentModel"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        title.tap()
+        // The demo Gateway lists no agents or models, so the menu may be empty; it must still open and dismiss.
+        XCTAssertEqual(title.value as? String, "OpenClaw")
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+
+        // The assistant's file shows name, size and type, with a download button.
+        let card = app.descendants(matching: .any)["chat.file.gateway-summary.md"]
+        for _ in 0..<4 where !card.exists { app.scrollViews["chat.transcript"].swipeDown() }
+        XCTAssertTrue(card.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["chat.file.download"].exists)
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "Chat — file card"
+        shot.lifetime = .keepAlways
+        add(shot)
+    }
 }

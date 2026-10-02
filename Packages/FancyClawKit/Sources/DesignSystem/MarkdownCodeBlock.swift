@@ -22,6 +22,7 @@ struct CopyFeedback: Equatable {
 
 struct MarkdownCodeBlock: View {
     let configuration: StructuredText.CodeBlockStyleConfiguration
+    @Environment(\.appTheme) private var theme
     @State private var feedback = CopyFeedback()
     @AppStorage("hapticsEnabled") private var hapticsEnabled = true
 
@@ -35,11 +36,12 @@ struct MarkdownCodeBlock: View {
                 HStack {
                     Text(configuration.languageHint ?? "Code")
                         .font(.caption.monospaced())
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(theme.textSecondary.color)
                     Spacer()
                     Button(action: copy) {
                         Label(copied ? "Copied" : "Copy", systemImage: copied ? "checkmark" : "doc.on.doc")
                             .font(.caption)
+                            .foregroundStyle(theme.textPrimary.color)
                             .frame(minWidth: 44, minHeight: 44)
                             .contentShape(.rect)
                     }
@@ -49,7 +51,7 @@ struct MarkdownCodeBlock: View {
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
-                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 14))
+                .surface(in: .rect(cornerRadius: 14), opacity: 0.12)
 
                 Overflow {
                     configuration.label
@@ -60,7 +62,7 @@ struct MarkdownCodeBlock: View {
                         .padding(14)
                 }
                 .textual.textSelection(.enabled)
-                .background(.background.secondary)
+                .surface(in: Rectangle(), opacity: 0.06)
             }
             .frame(width: state.containerWidth, alignment: .leading)
         }

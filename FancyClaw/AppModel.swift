@@ -70,7 +70,7 @@ final class AppModel {
                 return
             }
             let arguments = ProcessInfo.processInfo.arguments
-            let demoModes = ["-DemoConversation", "-DemoAttachments", "-DemoApprovals", "-DemoSystemIntegration", "-DemoOffline"]
+            let demoModes = ["-DemoConversation", "-DemoAttachments", "-DemoApprovals", "-DemoSystemIntegration", "-DemoOffline", "-DemoApprovalFocus"]
             let isDemo = demoModes.contains(where: arguments.contains)
             if arguments.contains("-FakeGateway") || isDemo {
                 isTestMode = true
@@ -100,6 +100,10 @@ final class AppModel {
                         return
                     } else if arguments.contains("-DemoSystemIntegration") {
                         await seedSystemDemo()
+                    } else if arguments.contains("-DemoApprovalFocus") {
+                        // Opens a long, not-yet-loaded chat focused on its approval card (the approval Review path).
+                        await openApprovalFocusDemo()
+                        return
                     } else if arguments.contains("-DemoApprovals") {
                         await seedApprovalDemo()
                     } else if arguments.contains("-DemoAttachments") {
@@ -164,6 +168,25 @@ final class AppModel {
             fake.requestApproval(.init(id: "demo-other-approval", createdAtMs: created, expiresAtMs: created + 120_000,
                 request: .init(command: "pwd", allowedDecisions: [.allowOnce, .deny], sessionKey: otherKey)))
         }
+    }
+
+    private func openApprovalFocusDemo() async {
+        guard let fake, let sessions else { return }
+        await sessions.refresh()
+        guard let key = await sessions.create() else { return }
+        fake.seedHistory((0..<30).flatMap { index -> [ChatMessage] in
+            [ChatMessage(role: .user, content: [.text("Question \(index + 1)")], metadata: .init(id: "focus-user-\(index)")),
+             ChatMessage(role: .assistant, content: [.text("Answer \(index + 1). This reply is long enough to take a few lines of the transcript, so the approval at the end starts far from the top of the chat.")],
+                         metadata: .init(id: "focus-assistant-\(index)"))]
+        }, sessionKey: key)
+        let created = Int(Date.now.timeIntervalSince1970 * 1000)
+        fake.requestApproval(.init(id: "demo-focus-approval", createdAtMs: created, expiresAtMs: created + 300_000,
+            request: .init(command: "git push origin fix/date-parser", commandPreview: "Push fix to photo-sync",
+                host: "Gateway", allowedDecisions: [.allowOnce, .allowAlways, .deny], sessionKey: key)))
+        for _ in 0..<60 where approvals?.approvals.contains(where: { $0.id == "demo-focus-approval" }) != true {
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+        await open(sessionKey: key, focusApproval: "demo-focus-approval")
     }
 
     private func seedRichDemo() async {

@@ -1,6 +1,6 @@
 import XCTest
 
-/// Navigation helpers for the tab shell: chats are pushed with the tab bar hidden.
+/// Navigation helpers for the tab shell: chats are pushed with the tab bar and navigation bar hidden.
 extension XCUIApplication {
     var tabBar: XCUIElement { tabBars.firstMatch }
 
@@ -9,7 +9,9 @@ extension XCUIApplication {
 
     /// Taps the navigation bar's back button and waits for the tab bar to return.
     @MainActor func goBackToTab(file: StaticString = #filePath, line: UInt = #line) {
-        let back = navigationBars.buttons.element(boundBy: 0)
+        // Chats hide the navigation bar and draw their own glass back button.
+        let chatBack = buttons["chat.back"]
+        let back = chatBack.exists ? chatBack : navigationBars.buttons.element(boundBy: 0)
         XCTAssertTrue(back.waitForExistence(timeout: 5), "No back button", file: file, line: line)
         back.tap()
         XCTAssertTrue(tabBar.waitForExistence(timeout: 5), "Tab bar did not return", file: file, line: line)

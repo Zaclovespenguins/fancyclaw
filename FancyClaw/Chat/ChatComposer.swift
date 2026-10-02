@@ -1,5 +1,6 @@
 import AVFoundation
 import ChatCore
+import DesignSystem
 import GatewayProtocol
 import OSLog
 import PhotosUI
@@ -14,6 +15,8 @@ struct ChatComposer: View {
     let stop: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.appTheme) private var theme
+    @ScaledMetric(relativeTo: .body) private var capsuleHeight = 54
     @AppStorage("hapticsEnabled") private var hapticsEnabled = true
     @State private var sentCount = 0
     @State private var stopCount = 0
@@ -37,33 +40,42 @@ struct ChatComposer: View {
                     attachments.removeAll { $0.id == id }
                 })
                 .disabled(isSubmitting)
-                .padding(.horizontal, 8)
             }
             if isPreparing {
-                HStack { ProgressView(); Text("Preparing attachment…").font(.subheadline) }
+                HStack {
+                    ProgressView()
+                    Text("Preparing attachment…").font(.subheadline).foregroundStyle(theme.textPrimary.color)
+                }
             }
-            HStack(alignment: .bottom, spacing: 6) {
+            HStack(alignment: .center, spacing: 4) {
                 Menu {
                     Button("Photo Library", systemImage: "photo.on.rectangle") { showingPhotos = true }
                     Button("Take Photo", systemImage: "camera") { openCamera() }
                     Button("Choose File", systemImage: "doc") { showingFiles = true }
                 } label: {
                     Image(systemName: "plus")
-                        .font(.system(size: 16, weight: .medium))
-                        .frame(minWidth: 44, minHeight: 44)
-                        .contentShape(.rect)
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(theme.textPrimary.color)
+                        .frame(width: 44, height: 44)
+                        .surface(in: .circle, opacity: 0.10)
+                        .contentShape(.circle)
                 }
                 .accessibilityLabel("Attach")
                 .disabled(isPreparing || isSubmitting)
                 .accessibilityIdentifier("chat.attach")
 
-                TextField("Message FancyClaw", text: $draft, axis: .vertical)
+                TextField("", text: $draft, prompt: Text("Message").foregroundStyle(theme.placeholder.color), axis: .vertical)
                     .lineLimit(1...5)
+                    .font(.callout)
+                    .foregroundStyle(theme.textPrimary.color)
                     .focused($isMessageFocused)
-                    .frame(minHeight: 44)
+                    .padding(.vertical, 12)
+                    .padding(.horizontal, 6)
+                    .fixedSize(horizontal: false, vertical: true)
                     .disabled(isSubmitting)
                     .submitLabel(.send)
                     .onSubmit(submit)
+                    .accessibilityLabel("Message")
                     .accessibilityIdentifier("chat.composer")
 
                 Button(isStreaming ? "Stop" : "Send",
@@ -71,25 +83,26 @@ struct ChatComposer: View {
                     if isStreaming { stopWithFeedback() } else { submit() }
                 }
                     .labelStyle(.iconOnly)
-                    .buttonStyle(ChatComposerButtonStyle(role: isStreaming ? .stop : .send, reduceMotion: reduceMotion))
+                    .buttonStyle(ChatComposerButtonStyle(reduceMotion: reduceMotion, fill: theme.textPrimary.color, glyph: theme.bg.color))
                     .disabled(!isStreaming && (isPreparing || isSubmitting || (draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && attachments.isEmpty)))
                     .accessibilityIdentifier(isStreaming ? "chat.stop" : "chat.send")
                     .accessibilityInputLabels(isStreaming ? ["Stop response", "Stop generating"] : ["Send message"])
             }
+            .padding(.horizontal, 7)
+            .padding(.vertical, 5)
+            .frame(minHeight: capsuleHeight)
+            .background {
+                // The background receives padding and gap taps without taking taps from controls.
+                Color.clear
+                    .contentShape(.rect(cornerRadius: capsuleHeight / 2))
+                    .onTapGesture {
+                        guard !isSubmitting else { return }
+                        Self.focusLogger.debug("Composer background tapped; requesting focus")
+                        isMessageFocused = true
+                    }
+            }
+            .glass(in: .rect(cornerRadius: capsuleHeight / 2))
         }
-        .padding(.horizontal, 4)
-        .padding(.vertical, 4)
-        .background {
-            // The background receives padding and gap taps without taking taps from controls.
-            Color.clear
-                .contentShape(.rect(cornerRadius: 28))
-                .onTapGesture {
-                    guard !isSubmitting else { return }
-                    Self.focusLogger.debug("Composer background tapped; requesting focus")
-                    isMessageFocused = true
-                }
-        }
-        .glassEffect(.regular, in: .rect(cornerRadius: 28))
         .photosPicker(isPresented: $showingPhotos, selection: $selectedPhotos, matching: .images)
         .onChange(of: selectedPhotos) { _, photos in
             guard !photos.isEmpty else { return }
@@ -220,21 +233,17 @@ struct ChatComposer: View {
 }
 
 private struct ChatComposerButtonStyle: ButtonStyle {
-    enum Role: Equatable {
-        case send
-        case stop
-    }
-
-    let role: Role
     let reduceMotion: Bool
+    let fill: Color
+    let glyph: Color
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 16, weight: .semibold))
-            .foregroundStyle(Color(uiColor: .systemBackground))
-            .frame(width: 32, height: 32)
-            .background(role == .send ? Color.accentColor : Color.primary, in: Circle())
+            .font(.body.weight(.semibold))
+            .foregroundStyle(glyph)
+            .frame(width: 40, height: 40)
+            .background(fill, in: Circle())
             .frame(width: 44, height: 44)
             .contentShape(.rect)
             .opacity(!isEnabled ? 0.4 : configuration.isPressed ? 0.78 : 1)

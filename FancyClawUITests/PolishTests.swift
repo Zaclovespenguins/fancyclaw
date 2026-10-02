@@ -45,7 +45,7 @@ final class PolishTests: XCTestCase {
         try audit(app)
         capture(app, "Approval — dark XXL")
         app.buttons["approval.allow-once.demo-approval"].tap()
-        XCTAssertTrue(app.staticTexts["Approved once"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["approval.status.demo-approval"].waitForExistence(timeout: 5))
         app.openChatsTab()
         XCTAssertTrue(app.sessionRow(titled: "Main chat").waitForExistence(timeout: 5))
         waitForStableFrame(app.sessionRow(titled: "Main chat"))
@@ -70,7 +70,8 @@ final class PolishTests: XCTestCase {
     @MainActor
     func testRichOutputAccessibilityAndLargeText() throws {
         let app = launch("-DemoConversation", largeDark: true)
-        XCTAssertTrue(app.buttons["chat.tool.demo-exec"].waitForExistence(timeout: 10))
+        let chip = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "chat.toolchip.")).firstMatch
+        XCTAssertTrue(chip.waitForExistence(timeout: 10))
         try audit(app)
         capture(app, "Rich output — dark XXL")
         app.scrollViews["chat.transcript"].swipeDown()
@@ -103,6 +104,32 @@ final class PolishTests: XCTestCase {
                 capture(app, "\(tab) placeholder — \(suffix)")
             }
             app.terminate()
+        }
+    }
+
+    /// Light and dark screenshots at default and XXL text for the restyled chat in each demo mode.
+    @MainActor
+    func testChatScreenshotsAcrossModesAndAppearances() throws {
+        let modes: [(arg: String, ready: String, name: String)] = [
+            ("-DemoConversation", "chat.menu", "Conversation"),
+            ("-DemoAttachments", "attachment.tray", "Attachments"),
+            ("-DemoApprovals", "approval.deny.demo-approval", "Approvals"),
+            ("-DemoApprovalFocus", "approval.deny.demo-focus-approval", "Approval focus"),
+        ]
+        for mode in modes {
+            for dark in [false, true] {
+                for large in [false, true] {
+                    let app = XCUIApplication()
+                    app.launchArguments = [mode.arg, dark ? "-PolishDark" : "-PolishLight"]
+                    if large { app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryXXL"] }
+                    app.launch()
+                    let ready = app.descendants(matching: .any)[mode.ready]
+                    XCTAssertTrue(ready.waitForExistence(timeout: 15), "\(mode.name) did not appear")
+                    Thread.sleep(forTimeInterval: 2)
+                    capture(app, "Chat \(mode.name) — \(dark ? "dark" : "light") \(large ? "XXL" : "default")")
+                    app.terminate()
+                }
+            }
         }
     }
 
