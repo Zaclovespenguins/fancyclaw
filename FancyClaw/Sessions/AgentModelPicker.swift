@@ -44,7 +44,7 @@ struct AgentModelPicker: View {
             .frame(minHeight: 28)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .contentShape(.rect)
+            .glassEffect(.regular.interactive(), in: .capsule)
         }
         .accessibilityLabel("\(agentName). Choose agent or model")
         .accessibilityValue([agentName, session.model].compactMap { $0 }.joined(separator: ", "))

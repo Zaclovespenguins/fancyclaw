@@ -89,6 +89,7 @@ struct ChatComposer: View {
                     isMessageFocused = true
                 }
         }
+        .glassEffect(.regular, in: .rect(cornerRadius: 28))
         .photosPicker(isPresented: $showingPhotos, selection: $selectedPhotos, matching: .images)
         .onChange(of: selectedPhotos) { _, photos in
             guard !photos.isEmpty else { return }
