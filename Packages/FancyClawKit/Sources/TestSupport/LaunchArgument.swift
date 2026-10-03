@@ -8,4 +8,7 @@ public enum LaunchArgument: String, CaseIterable, Sendable {
 
     /// Seed a fixture conversation for rendering checks.
     case demoConversation = "-DemoConversation"
+
+    /// Seed final and streaming links; metadata is stubbed and never contacts the websites.
+    case demoLinkPreviews = "-DemoLinkPreviews"
 }

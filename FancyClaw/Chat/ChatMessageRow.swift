@@ -11,6 +11,7 @@ struct ChatMessageRow: View {
     var onRetry: (() -> Void)?
 
     @Environment(\.appTheme) private var theme
+    @AppStorage(SettingsKeys.showLinkPreviews) private var showLinkPreviews = true
     @State private var rowWidth: CGFloat = 0
 
     /// User bubbles take at most 82% of the row.
@@ -59,6 +60,11 @@ struct ChatMessageRow: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 } else if message.isStreaming && message.tools.isEmpty {
                     ChatThinkingIndicator()
+                }
+            }
+            if showLinkPreviews {
+                ForEach(LinkPreviewExtractor.urls(in: message, gatewayBaseURL: gatewayBaseURL), id: \.self) { url in
+                    LinkPreviewCard(url: url)
                 }
             }
             ForEach(Array(message.files.enumerated()), id: \.offset) { _, file in

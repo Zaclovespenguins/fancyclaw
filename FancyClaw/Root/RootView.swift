@@ -59,6 +59,7 @@ struct RootView: View {
             }
         }
         .tabBarMinimizeBehavior(.onScrollDown)
+        .environment(\.linkPreviewLoader, model.linkPreviewLoader)
     }
 
     private func stack<Root: View>(_ tab: AppTab, @ViewBuilder root: () -> Root) -> some View {

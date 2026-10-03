@@ -16,6 +16,7 @@ final class AppModel {
     /// The most recently opened conversation. Intents and the demo modes use it; chat screens render the store their route names.
     private(set) var conversation: ConversationStore?
     let router = AppRouter()
+    let linkPreviewLoader = LinkPreviewLoader()
     /// `hello.server.version` from the latest handshake, shown in Settings.
     private(set) var gatewayVersion: String?
     private(set) var sessions: SessionStore?
@@ -70,7 +71,7 @@ final class AppModel {
                 return
             }
             let arguments = ProcessInfo.processInfo.arguments
-            let demoModes = ["-DemoConversation", "-DemoAttachments", "-DemoApprovals", "-DemoSystemIntegration", "-DemoOffline", "-DemoApprovalFocus", "-DemoSessionActionError"]
+            let demoModes = ["-DemoConversation", "-DemoAttachments", "-DemoApprovals", "-DemoSystemIntegration", "-DemoOffline", "-DemoApprovalFocus", "-DemoSessionActionError", "-DemoLinkPreviews"]
             let isDemo = demoModes.contains(where: arguments.contains)
             if arguments.contains("-FakeGateway") || isDemo {
                 isTestMode = true
@@ -101,6 +102,8 @@ final class AppModel {
                         // Opens a long, not-yet-loaded chat focused on its approval card (the approval Review path).
                         await openApprovalFocusDemo()
                         return
+                    } else if arguments.contains("-DemoLinkPreviews") {
+                        await seedLinkPreviewDemo()
                     } else if arguments.contains("-DemoApprovals") {
                         await seedApprovalDemo()
                     } else if arguments.contains("-DemoAttachments") {
@@ -140,6 +143,13 @@ final class AppModel {
     }
 
     #if DEBUG
+    private func seedLinkPreviewDemo() async {
+        guard let conversation, let fake else { return }
+        fake.seedHistory(LinkPreviewDemo.history, sessionKey: conversation.sessionKey, activeRunID: "demo-link-stream")
+        conversation.reconcileHistory(LinkPreviewDemo.history)
+        conversation.receive(LinkPreviewDemo.partialStream(sessionKey: conversation.sessionKey))
+    }
+
     private func seedSystemDemo() async {
         guard let fake else { return }
         fake.seedHistory([ChatMessage(role: .user, content: [.text("Show a Live Activity for this reply.")],
