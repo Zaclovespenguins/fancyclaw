@@ -36,6 +36,10 @@ public final class ConversationStore {
     private var assistantEntryIDsByRunID: [String: String] = [:]
     private var runs: [String: RunState] = [:]
     private var outbox: [String: PendingSend] = [:]
+    /// Retained after reconciliation removes outbox entries, so an acknowledged Home retry is a no-op.
+    private var confirmedSendKeys: Set<String> = []
+    private var submissionGeneration = 0
+    @ObservationIgnored private var sendWaiters: [String: [UUID: CheckedContinuation<Bool, Never>]] = [:]
     private var isAsking = false
     private var isStarting = false
     private var inFlightKeys: Set<String> = []
@@ -152,13 +156,15 @@ public final class ConversationStore {
         }
     }
 
-    private func applyPage(_ page: ChatHistoryPage, appliesRunState: Bool = true) {
+    /// Canonical page reducer; package-internal so reset races can be controlled in tests.
+    func applyPage(_ page: ChatHistoryPage, appliesRunState: Bool = true) {
         if let old = sessionID, let new = page.sessionId, old != new {
             throttle.cancel()
             pendingAssistantMessages.removeAll()
             lastToolSequence.removeAll()
             messages = []
             outbox.removeAll()
+            clearAcknowledgments()
             rejectedKeys.removeAll()
             runs.removeAll()
             runIDsByIdempotencyKey.removeAll()
@@ -229,6 +235,9 @@ public final class ConversationStore {
 
     public func invalidate() {
         invalidated = true
+        clearAcknowledgments()
+        outbox.removeAll()
+        runIDsByIdempotencyKey.removeAll()
         draftAttachments.removeAll()
         stopListening()
     }
@@ -257,6 +266,63 @@ public final class ConversationStore {
     @discardableResult
     public func send(_ text: String, attachments: [PreparedAttachment] = []) async -> Bool {
         await submit(text, attachments: attachments, idempotencyKey: UUID().uuidString)
+    }
+
+    /// Home keeps a frozen task until the Gateway acknowledges it. Retries join the same outbox identity;
+    /// an automatic reconnect retry or exact canonical user echo can have acknowledged it already.
+    public func sendAcknowledged(_ text: String, attachments: [PreparedAttachment] = [], idempotencyKey: String) async -> Bool {
+        guard !invalidated, !Task.isCancelled else { return false }
+        if let pending = outbox[idempotencyKey], (pending.text != text || pending.attachments != attachments) {
+            errorMessage = "This retry must keep the original message and attachments."
+            return false
+        }
+        if confirmedSendKeys.contains(idempotencyKey) { return true }
+        if inFlightKeys.contains(idempotencyKey) { return await waitForAcknowledgment(idempotencyKey) }
+        if let pending = outbox[idempotencyKey] {
+            // Never change the payload under a previously submitted idempotency key.
+            _ = await submit(pending.text, attachments: pending.attachments, idempotencyKey: idempotencyKey,
+                             existingMessageID: pending.messageID)
+        } else {
+            _ = await submit(text, attachments: attachments, idempotencyKey: idempotencyKey)
+        }
+        return !invalidated && confirmedSendKeys.contains(idempotencyKey)
+    }
+
+    public func isSending(idempotencyKey: String) -> Bool { inFlightKeys.contains(idempotencyKey) }
+
+    /// Editing a failed Home task starts another task; keep its old row manually retryable without an automatic resend.
+    public func pauseAutomaticRetry(idempotencyKey: String) { rejectedKeys.insert(idempotencyKey) }
+
+    private func waitForAcknowledgment(_ key: String) async -> Bool {
+        let waiterID = UUID()
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                guard !Task.isCancelled, !invalidated else { continuation.resume(returning: false); return }
+                guard inFlightKeys.contains(key) else {
+                    continuation.resume(returning: confirmedSendKeys.contains(key)); return
+                }
+                sendWaiters[key, default: [:]][waiterID] = continuation
+            }
+        } onCancel: {
+            Task { @MainActor [weak self] in
+                self?.sendWaiters[key]?.removeValue(forKey: waiterID)?.resume(returning: false)
+                if self?.sendWaiters[key]?.isEmpty == true { self?.sendWaiters.removeValue(forKey: key) }
+            }
+        }
+    }
+
+    private func settleAcknowledgmentWaiters(_ key: String) {
+        let accepted = !invalidated && confirmedSendKeys.contains(key)
+        let waiters = sendWaiters.removeValue(forKey: key) ?? [:]
+        for continuation in waiters.values { continuation.resume(returning: accepted) }
+    }
+
+    private func clearAcknowledgments() {
+        submissionGeneration += 1
+        let waiters = sendWaiters
+        sendWaiters.removeAll()
+        for group in waiters.values { for continuation in group.values { continuation.resume(returning: false) } }
+        confirmedSendKeys.removeAll()
     }
 
     /// A foreground Shortcut sends through the same outbox and waits only for its own run.
@@ -411,7 +477,11 @@ public final class ConversationStore {
             canonical.append(message)
         }
         messages = canonical
-        for key in confirmedKeys { outbox.removeValue(forKey: key); rejectedKeys.remove(key) }
+        for key in confirmedKeys {
+            confirmedSendKeys.insert(key)
+            outbox.removeValue(forKey: key); rejectedKeys.remove(key)
+            settleAcknowledgmentWaiters(key)
+        }
     }
 
     /// Public for deterministic reducer tests and callers that already own an event stream.
@@ -488,6 +558,7 @@ public final class ConversationStore {
 
     @discardableResult
     private func submit(_ text: String, attachments: [PreparedAttachment], idempotencyKey: String, existingMessageID: String? = nil) async -> Bool {
+        let generation = submissionGeneration
         guard !invalidated, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachments.isEmpty else { return false }
         let params = ChatSendParams(sessionKey: sessionKey, message: text, idempotencyKey: idempotencyKey,
                                     attachments: attachments.isEmpty ? nil : attachments.map(\.payload))
@@ -495,8 +566,11 @@ public final class ConversationStore {
         guard !invalidated else { return false }
         do { try await attachmentPipeline.validateSubmission(attachments, params: params, policy: policy) }
         catch { errorMessage = error.localizedDescription; return false }
-        guard !invalidated, inFlightKeys.insert(idempotencyKey).inserted else { return false }
-        defer { inFlightKeys.remove(idempotencyKey) }
+        guard !invalidated, generation == submissionGeneration, inFlightKeys.insert(idempotencyKey).inserted else { return false }
+        defer {
+            inFlightKeys.remove(idempotencyKey)
+            settleAcknowledgmentWaiters(idempotencyKey)
+        }
         transcriptRevision += 1
         let messageID = existingMessageID ?? "\(idempotencyKey):user"
         if existingMessageID == nil {
@@ -509,12 +583,13 @@ public final class ConversationStore {
 
         do {
             try await connection.subscribeToSessionMessages(sessionKey)
-            guard !invalidated else { return true }
+            guard !invalidated, generation == submissionGeneration else { return true }
             let response: ChatSendResponse = try await connection.request(
                 "chat.send",
                 params: params,
                 returning: ChatSendResponse.self
             )
+            guard !invalidated, generation == submissionGeneration else { return true }
             adopt(response, idempotencyKey: idempotencyKey)
             if response.status == .ok && runs[response.runId]?.isTerminal != true {
                 var state = runs[response.runId, default: RunState()]
@@ -523,6 +598,7 @@ public final class ConversationStore {
                 if activeRunID == response.runId { isStreaming = false; activeRunID = nil }
             }
         } catch {
+            guard !invalidated, generation == submissionGeneration, !confirmedSendKeys.contains(idempotencyKey) else { return true }
             errorMessage = error.localizedDescription
             if error is GatewayErrorShape { rejectedKeys.insert(idempotencyKey) } else { rejectedKeys.remove(idempotencyKey) }
             setDeliveryFailed(true, messageID: messageID)
@@ -537,6 +613,8 @@ public final class ConversationStore {
     }
 
     func adopt(_ response: ChatSendResponse, idempotencyKey: String) {
+        guard !invalidated else { return }
+        confirmedSendKeys.insert(idempotencyKey)
         let previousRunID = runIDsByIdempotencyKey[idempotencyKey] ?? idempotencyKey
         runIDsByIdempotencyKey[idempotencyKey] = response.runId
         if response.runId != previousRunID {

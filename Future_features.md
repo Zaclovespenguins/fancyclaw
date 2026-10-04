@@ -82,3 +82,11 @@ Work deliberately left out of the layout redesign (`layout_redesign.md`). Each e
 - **Theme picker.** R1 adds the theme infrastructure and a placeholder row in Settings, with only the default (coral) theme. Adding themes means defining new `AppTheme` token sets (light and dark variants each) and enabling the picker.
 - **Running card progress.** Home's Running cards show a spinner only. A timer (from the run's `startedAt`) or real progress would need a Gateway progress signal, which the pinned release doesn't send.
 - **Skill detail screen.** Not designed yet. R6 tiles don't navigate anywhere, or show a minimal read-only detail if the `skills.status` data supports it.
+
+## Accessibility audit follow-up
+
+**Status:** Deferred at the owner's request on 2026-10-03. Automated accessibility-only audit checks were removed; functional navigation, chat, approval, Settings and screenshot coverage remains.
+
+**Observed findings:** Native Chats search clipping; rich-output text measured outside the transcript viewport; partial Dynamic Type support reported on file metadata and multiline SwiftUI text. Earlier runs also flagged nested attachment-caption grouping despite readable screenshot text. These findings are not claimed fixed. Custom caption aggregation was removed so the native text children remain exposed.
+
+**Later work:** Reproduce on supported iOS runtimes, inspect VoiceOver and actual text scaling, distinguish layout defects from audit artifacts, and restore focused audit coverage when addressing accessibility. The completed pre-deferral report and diagnostics are recorded in `.claude/deviations/redesign-r3-link-previews.md`.

@@ -27,7 +27,7 @@ struct RootView: View {
     var body: some View {
         TabView(selection: selection) {
             Tab("Home", systemImage: "house", value: Selection.tab(.home)) {
-                stack(.home) { HomePlaceholderView(model: model) }
+                stack(.home) { HomeView(model: model) }
             }
             Tab("Chats", systemImage: "bubble.left", value: Selection.tab(.chats)) {
                 stack(.chats) {
@@ -76,6 +76,7 @@ struct RootView: View {
             ChatDestination(model: model, sessionKey: key, focusApproval: focusApproval)
         case .settings:
             SettingsView(model: model)
+                .toolbar(.visible, for: .navigationBar)
         case .skill:
             TabPlaceholderView(title: "Skill", systemImage: "square.grid.2x2", message: "Skill details are coming soon.")
         }

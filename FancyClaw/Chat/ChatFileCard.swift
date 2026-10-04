@@ -38,7 +38,6 @@ struct ChatFileCard: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .accessibilityElement(children: .combine)
             if canDownload {
                 Button { download.start(media: media, load: load) } label: {
                     Group {

@@ -217,8 +217,11 @@ Fixes from `debugging/code-review-2026-10-01.md`; details in the four `debugging
 
 ## Layout redesign (2026-10-02)
 
+- [Accessibility checks deferred](deviations/redesign-accessibility-deferred.md) — Owner-directed removal of audit-only checks; functional coverage retained.
+
 Per-slice deviations and verification for the layout redesign (`layout_redesign.md`, `Future_features.md`) live under `.claude/deviations/`.
 
 - R1 Foundation (theme, tab root, routing, Settings): `.claude/deviations/redesign-r1-foundation.md`
 - R2 Chat restyle (top bar, messages, tool chip, file card, approval card, composer, approval focus fix): `.claude/deviations/redesign-r2-chat.md`
 - R3 Link previews (extraction, bounded metadata memory cache, cards, Settings privacy preference): `.claude/deviations/redesign-r3-link-previews.md`
+- R4 Home (dashboard, frozen acknowledged task retries, approval reviews, running/recent sessions): `.claude/deviations/redesign-r4-home.md`

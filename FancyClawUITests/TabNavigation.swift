@@ -19,6 +19,12 @@ extension XCUIApplication {
 
     @MainActor func selectTab(_ name: String, file: StaticString = #filePath, line: UInt = #line) {
         let button = tabBars.buttons[name]
+        if !button.exists {
+            // On iOS 26+, minimize-on-scroll can expose only the selected tab and compose button.
+            // Tapping the native collapsed selection expands the tab choices without changing screens.
+            let collapsed = tabBars.buttons.matching(NSPredicate(format: "value CONTAINS %@", "Collapsed")).firstMatch
+            if collapsed.exists && collapsed.isHittable { collapsed.tap() }
+        }
         XCTAssertTrue(button.waitForExistence(timeout: 5), "No \(name) tab", file: file, line: line)
         button.tap()
     }

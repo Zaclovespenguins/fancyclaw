@@ -24,7 +24,8 @@ final class AppModel {
     private var cache: TranscriptCache?
     private var cacheContainer: ModelContainer?
     private let activityDriver = ActivityKitDriver()
-    private var runActivities: RunActivityStore?
+    private(set) var runActivities: RunActivityStore?
+    private(set) var homeDraft = HomeTaskDraft()
     private var preparationTask: Task<Void, Never>?
     private var conversations: [String: ConversationStore] = [:]
     private(set) var status: ConnectionStatus = .offline
@@ -71,7 +72,7 @@ final class AppModel {
                 return
             }
             let arguments = ProcessInfo.processInfo.arguments
-            let demoModes = ["-DemoConversation", "-DemoAttachments", "-DemoApprovals", "-DemoSystemIntegration", "-DemoOffline", "-DemoApprovalFocus", "-DemoSessionActionError", "-DemoLinkPreviews"]
+            let demoModes = ["-DemoConversation", "-DemoAttachments", "-DemoApprovals", "-DemoSystemIntegration", "-DemoOffline", "-DemoApprovalFocus", "-DemoSessionActionError", "-DemoLinkPreviews", "-DemoHome", "-DemoHomeSendError", "-DemoHomeModelError"]
             let isDemo = demoModes.contains(where: arguments.contains)
             if arguments.contains("-FakeGateway") || isDemo {
                 isTestMode = true
@@ -90,7 +91,16 @@ final class AppModel {
                     let connection = GatewayConnection(identity: .generate())
                     let hello = try await connection.connect(to: initialProfile.url, token: initialProfile.token)
                     await activate(profile: initialProfile, connection: connection, hello: hello)
-                    if arguments.contains("-DemoOffline") {
+                    if arguments.contains("-DemoHome") || arguments.contains("-DemoHomeSendError") || arguments.contains("-DemoHomeModelError") {
+                        await seedHomeDemo()
+                        if arguments.contains("-DemoHomeSendError") {
+                            fake.fail("chat.send", with: .init(code: .forbidden, message: "The demo Gateway rejected this task."))
+                        }
+                        if arguments.contains("-DemoHomeModelError") {
+                            fake.fail("sessions.patch", with: .init(code: .forbidden, message: "The demo Gateway rejected this model."))
+                        }
+                        return
+                    } else if arguments.contains("-DemoOffline") {
                         // Every automatic retry is refused until the person explicitly chooses Reconnect.
                         // This remains deterministic even if launch-time availability callbacks arrive late.
                         fake.refuseConnections(.init(code: .forbidden, message: "The demo Gateway refused to reconnect."))
@@ -143,6 +153,39 @@ final class AppModel {
     }
 
     #if DEBUG
+    private func seedHomeDemo() async {
+        guard let fake, let sessions else { return }
+        await sessions.loadCatalogs()
+        let rows = [
+            SessionSummary(key: SessionKey.main.rawValue, sessionId: "fake-main", agentId: "main", label: "Weekend plans"),
+            SessionSummary(key: "agent:main:home-running", sessionId: "home-running", agentId: "main", label: "Photo sync", hasActiveRun: true, activeRunIds: ["home-run"]),
+            SessionSummary(key: "agent:main:home-review", sessionId: "home-review", agentId: "main", label: "Date parser"),
+            SessionSummary(key: "agent:main:home-recent", sessionId: "home-recent", agentId: "main", label: "Gateway notes")
+        ]
+        let datedRows = rows.enumerated().map { index, row in
+            var row = row
+            row.updatedAt = Date.now.addingTimeInterval(-Double(index) * 3600).timeIntervalSince1970 * 1000
+            return row
+        }
+        fake.seedSessions(datedRows)
+        fake.seedHistory([ChatMessage(role: .assistant, content: [.text("Your weekend plans are ready.")], metadata: .init(id: "home-main-answer"))], sessionKey: SessionKey.main.rawValue)
+        fake.seedHistory([ChatMessage(role: .assistant, content: [.text("Notes from your Gateway.")], metadata: .init(id: "home-notes-answer"))], sessionKey: "agent:main:home-recent")
+        fake.seedHistory((0..<12).map { ChatMessage(role: .assistant, content: [.text("Date parser investigation, step \($0 + 1).")], metadata: .init(id: "home-review-\($0)")) }, sessionKey: "agent:main:home-review")
+        fake.seedHistory([], sessionKey: "agent:main:home-running", activeRunID: "home-run")
+        await sessions.refresh()
+        await runActivities?.receive(.init(event: .chat(.init(runId: "home-run", sessionKey: "agent:main:home-running", seq: 1, state: .delta(.init(deltaText: "Checking the photo sync."))))))
+        let created = Int(Date.now.timeIntervalSince1970 * 1000)
+        for (id, key, command, preview) in [
+            ("home-approval", Optional("agent:main:home-review"), "git push origin fix/date-parser", "Push fix to photo-sync"),
+            ("home-global-approval", nil, "swift --version", "Check Swift version")
+        ] {
+            let request = ExecApprovalRequest(id: id, createdAtMs: created, expiresAtMs: created + 600_000,
+                request: .init(command: command, commandPreview: preview, allowedDecisions: [.allowOnce, .allowAlways, .deny], sessionKey: key))
+            fake.requestApproval(request)
+            approvals?.receive(.init(event: .execApprovalRequested(request)))
+        }
+    }
+
     private func seedLinkPreviewDemo() async {
         guard let conversation, let fake else { return }
         fake.seedHistory(LinkPreviewDemo.history, sessionKey: conversation.sessionKey, activeRunID: "demo-link-stream")
@@ -328,6 +371,45 @@ final class AppModel {
         if let key = await sessions?.create() { await open(sessionKey: key) }
     }
 
+    var homeAgentName: String {
+        guard let id = sessions?.defaultAgentID else { return "Assistant" }
+        let name = sessions?.agents.first(where: { $0.id == id })?.name?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let name, !name.isEmpty { return name }
+        return id.capitalized
+    }
+
+    func homeAttachmentLimits() async -> HelloOK.AttachmentLimits? { await connection?.policy?.attachments }
+
+    func refreshHome() async {
+        guard status == .connected else { return }
+        await resync()
+        await sessions?.loadCatalogs()
+    }
+
+    @discardableResult
+    func submitHomeDraft() async -> Bool {
+        guard let sessions else { return false }
+        return await homeDraft.submit(sessions: sessions, connected: status == .connected, send: { [weak self] session, text, uploads, key in
+            guard let self, self.status == .connected, self.sessions === sessions,
+                  let current = sessions.sessions.first(where: { $0.key == session.key }), current.sessionId == session.sessionId,
+                  let store = self.conversationStore(for: session.key) else {
+                throw HomeSendError(message: "The connection or chat changed. Your task is still here.")
+            }
+            await store.start()
+            guard await store.sendAcknowledged(text, attachments: uploads, idempotencyKey: key) else {
+                if Task.isCancelled { throw CancellationError() }
+                throw HomeSendError(message: store.errorMessage ?? "Couldn’t send this task. Retry when the Gateway is connected.")
+            }
+        }, open: { [weak self] key in await self?.open(sessionKey: key) })
+    }
+
+    func editHomeAsNewTask() {
+        if let session = homeDraft.pendingSessionKey, let key = homeDraft.pendingIdempotencyKey {
+            existingStore(for: session)?.pauseAutomaticRetry(idempotencyKey: key)
+        }
+        homeDraft.editAsNewTask()
+    }
+
     private func trackHistoryRuns(in store: ConversationStore) {
         let key = store.sessionKey
         store.onRunSnapshot = { [weak runActivities] ids in
@@ -385,6 +467,7 @@ final class AppModel {
     }
 
     private func invalidateSession(_ key: String) async {
+        homeDraft.invalidateSession(key)
         await runActivities?.reconcile(sessionKey: key, activeRunIDs: [])
         conversations.removeValue(forKey: key)?.invalidate()
         let stillExists = sessions?.sessions.contains(where: { $0.key == key }) == true
@@ -445,6 +528,7 @@ final class AppModel {
         approvals = nil
         sessions = nil
         conversation = nil
+        homeDraft = HomeTaskDraft()
         gatewayVersion = nil
         router.reset()
         cache = nil

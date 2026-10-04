@@ -37,7 +37,6 @@ struct AttachmentTray: View {
                                 .foregroundStyle(theme.textSecondary.color)
                         }
                         .frame(maxWidth: dynamicTypeSize.isAccessibilitySize ? 240 : 140, alignment: .leading)
-                        .accessibilityElement(children: .combine)
                         .accessibilityIdentifier(attachment.fileName)
                         if let remove {
                             Button { remove(attachment.id) } label: {

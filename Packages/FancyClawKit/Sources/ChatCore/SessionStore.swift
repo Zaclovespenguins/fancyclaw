@@ -13,6 +13,8 @@ import Persistence
     public var errorMessage: String?
     public var search = ""
     public var selectedAgentID: String?
+    /// Gateway default, independent of the agent selected in a chat's title menu.
+    public private(set) var defaultAgentID: String?
     public var onInvalidatedSession: (@MainActor (String) async -> Void)?
     private let connection: GatewayConnection
     private let cache: TranscriptCache?
@@ -135,6 +137,7 @@ import Persistence
         do {
             let result: AgentsListResult = try await connection.request("agents.list", params: JSONValue.object([:]), returning: AgentsListResult.self)
             agents = result.agents
+            defaultAgentID = result.defaultId
             if selectedAgentID == nil { selectedAgentID = result.defaultId ?? agents.first?.id }
             let catalog: ModelsListResult = try await connection.request("models.list", params: ModelsListParams(), returning: ModelsListResult.self)
             models = catalog.models
@@ -142,14 +145,21 @@ import Persistence
     }
 
     public func create() async -> String? {
+        await create(agentID: selectedAgentID)
+    }
+
+    /// Explicit nil omits agentId, letting the Gateway choose its default.
+    public func create(agentID: String?, idempotencyKey: String = UUID().uuidString) async -> String? {
         do {
             let result: SessionsCreateResult = try await connection.request("sessions.create",
-                params: SessionsCreateParams(agentId: selectedAgentID), returning: SessionsCreateResult.self)
+                params: SessionsCreateParams(agentId: agentID, idempotencyKey: idempotencyKey), returning: SessionsCreateResult.self)
             revision += 1
-            let row = SessionSummary(key: result.key, sessionId: result.sessionId, agentId: selectedAgentID,
+            let row = SessionSummary(key: result.key, sessionId: result.sessionId, agentId: agentID,
                 updatedAt: Date().timeIntervalSince1970 * 1000)
             upsert(row)
-            try cache?.saveSessions([row])
+            errorMessage = nil
+            do { try cache?.saveSessions([row]) }
+            catch { errorMessage = "The chat was created, but couldn’t be cached. \(error.localizedDescription)" }
             return result.key
         } catch { errorMessage = error.localizedDescription; return nil }
     }
@@ -168,7 +178,8 @@ import Persistence
         } catch { errorMessage = error.localizedDescription }
     }
 
-    public func setModel(_ model: ModelSummary, for session: SessionSummary) async {
+    @discardableResult
+    public func setModel(_ model: ModelSummary, for session: SessionSummary) async -> Bool {
         do {
             let _: JSONValue = try await connection.request("sessions.patch",
                 params: SessionsPatchParams(key: session.key, model: model.selectionID, expectedSessionId: session.sessionId), returning: JSONValue.self)
@@ -176,8 +187,11 @@ import Persistence
             var updated = sessions.first(where: { $0.key == session.key }) ?? session
             updated.model = model.selectionID
             upsert(updated)
-            try cache?.saveSessions([updated])
-        } catch { errorMessage = error.localizedDescription }
+            errorMessage = nil
+            do { try cache?.saveSessions([updated]) }
+            catch { errorMessage = "The model was chosen, but couldn’t be cached. \(error.localizedDescription)" }
+            return true
+        } catch { errorMessage = error.localizedDescription; return false }
     }
 
     public func reset(_ session: SessionSummary) async {

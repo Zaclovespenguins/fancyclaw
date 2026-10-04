@@ -38,10 +38,13 @@ public final class FakeGateway: @unchecked Sendable {
     private var queuedRPCReplies: [String: [JSONValue]] = [:]
     private var sessionSupport = false
     private var sessionRows: [SessionSummary] = []
+    private var sessionCreationResults: [String: (params: JSONValue?, row: SessionSummary)] = [:]
     private var histories: [String: [ChatMessage]] = [:]
     private var cursorVersion = 0
     private var requiresMessageSubscription = false
     private var messageSubscriptions: [ObjectIdentifier: Set<String>] = [:]
+    private var pausedResponseMethods: Set<String> = []
+    private var heldResponses: [(method: String, data: Data, connection: NWConnection)] = []
 
     /// Models the session-scoped event routing used by the pinned real Gateway.
     public func enforceMessageSubscriptions() {
@@ -55,6 +58,8 @@ public final class FakeGateway: @unchecked Sendable {
             sessionRows = [SessionSummary(key: "agent:main:main", sessionId: "fake-main", agentId: "main", displayName: "Main chat")]
         }
     }
+
+    public func seedSessions(_ rows: [SessionSummary]) { lock.withLock { sessionRows = rows } }
 
     public func reply(to method: String, withSequence payloads: [JSONValue]) {
         lock.withLock { queuedRPCReplies[method] = payloads }
@@ -97,6 +102,20 @@ public final class FakeGateway: @unchecked Sendable {
 
     public func fail(_ method: String, with error: GatewayErrorShape) {
         lock.withLock { rpcErrors[method] = error }
+    }
+
+    public func clearFailure(for method: String) { lock.withLock { _ = rpcErrors.removeValue(forKey: method) } }
+
+    /// A controlled response gate for outbox/acknowledgment races; requests continue to be processed.
+    public func pauseResponses(to method: String) { lock.withLock { _ = pausedResponseMethods.insert(method) } }
+    public func resumeResponses(to method: String) {
+        let responses = lock.withLock {
+            pausedResponseMethods.remove(method)
+            let responses = heldResponses.filter { $0.method == method }
+            heldResponses.removeAll { $0.method == method }
+            return responses
+        }
+        for response in responses { sendData(response.data, on: response.connection) }
     }
 
     /// Refuses every connection until cleared, without consuming the scripted hello replies.
@@ -324,11 +343,19 @@ public final class FakeGateway: @unchecked Sendable {
             case "models.list": return .object(["models": .array([.object([
                 "id": .string("fake-model"), "name": .string("Fake model"), "provider": .string("test"), "available": .bool(true)])])])
             case "sessions.create":
+                let creationKey = request.params?["idempotencyKey"]?.stringValue
+                if let creationKey, let existing = sessionCreationResults[creationKey] {
+                    guard existing.params == request.params else {
+                        throw GatewayErrorShape(code: .invalidRequest, message: "Creation key reused with different parameters")
+                    }
+                    return .object(["ok": .bool(true), "key": .string(existing.row.key), "sessionId": .string(existing.row.sessionId ?? "")])
+                }
                 let agent = request.params?["agentId"]?.stringValue ?? "main"
                 let id = UUID().uuidString
                 let row = SessionSummary(key: "agent:\(agent):\(id)", sessionId: id, agentId: agent,
                     updatedAt: Date().timeIntervalSince1970 * 1000)
                 sessionRows.insert(row, at: 0)
+                if let creationKey { sessionCreationResults[creationKey] = (request.params, row) }
                 return .object(["ok": .bool(true), "key": .string(row.key), "sessionId": .string(id)])
             case "sessions.patch":
                 if let index = sessionRows.firstIndex(where: { $0.key == request.params?["key"]?.stringValue }) {
@@ -395,10 +422,22 @@ public final class FakeGateway: @unchecked Sendable {
         }
         do {
             let data = try GatewayCoding.encoder().encode(frame)
-            let metadata = NWProtocolWebSocket.Metadata(opcode: .text)
-            let context = NWConnection.ContentContext(identifier: "frame", metadata: [metadata])
-            connection.send(content: data, contentContext: context, isComplete: true, completion: .contentProcessed { _ in })
+            let wire = try GatewayCoding.decoder().decode(JSONValue.self, from: data)
+            let held = lock.withLock {
+                guard wire["type"]?.stringValue == "res", let id = wire["id"]?.stringValue,
+                      let method = rpcRequests.last(where: { $0.id == id })?.method,
+                      pausedResponseMethods.contains(method) else { return false }
+                heldResponses.append((method, data, connection))
+                return true
+            }
+            if !held { sendData(data, on: connection) }
         } catch { lock.withLock { failures.append(error) } }
+    }
+
+    private func sendData(_ data: Data, on connection: NWConnection) {
+        let metadata = NWProtocolWebSocket.Metadata(opcode: .text)
+        let context = NWConnection.ContentContext(identifier: "frame", metadata: [metadata])
+        connection.send(content: data, contentContext: context, isComplete: true, completion: .contentProcessed { _ in })
     }
 }
 

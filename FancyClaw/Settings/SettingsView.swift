@@ -1,7 +1,6 @@
 import DesignSystem
 import GatewayClient
 import SwiftUI
-import UIKit
 
 /// `@AppStorage` keys owned by Settings. The haptics key predates the redesign and must stay stable.
 enum SettingsKeys {
@@ -88,9 +87,10 @@ struct SettingsView: View {
                     .accessibilityIdentifier("settings.haptics")
                 Toggle("Show link previews", isOn: $showLinkPreviews)
                     .accessibilityIdentifier("settings.linkPreviews")
-                SettingsExplanation(
-                    text: "Previews load titles and images from linked websites.",
-                    color: theme.textSecondary.color)
+                Text("Previews load titles and images from linked websites.")
+                    .font(.footnote)
+                    .foregroundStyle(theme.textSecondary.color)
+                    .fixedSize(horizontal: false, vertical: true)
             } header: {
                 header("Preferences")
             }
@@ -137,52 +137,6 @@ struct SettingsView: View {
             .accessibilityIdentifier("settings.confirmDisconnect")
         } message: {
             Text("FancyClaw forgets this Gateway on this iPhone. Set it up again to reconnect.")
-        }
-    }
-}
-
-/// Native multiline sizing keeps the explanation readable at every content-size category.
-private struct SettingsExplanation: UIViewRepresentable {
-    let text: String
-    let color: Color
-
-    func makeUIView(context: Context) -> UILabel {
-        let label = UILabel()
-        label.numberOfLines = 0
-        label.adjustsFontForContentSizeCategory = true
-        label.accessibilityIdentifier = "settings.linkPreviewExplanation"
-        return label
-    }
-
-    func updateUIView(_ label: UILabel, context: Context) {
-        label.text = text
-        label.textColor = UIColor(color)
-        label.font = .preferredFont(forTextStyle: .footnote, compatibleWith: UITraitCollection(
-            preferredContentSizeCategory: context.environment.dynamicTypeSize.contentSizeCategory))
-    }
-
-    func sizeThatFits(_ proposal: ProposedViewSize, uiView: UILabel, context: Context) -> CGSize? {
-        guard let width = proposal.width else { return nil }
-        return CGSize(width: width, height: uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude)).height)
-    }
-}
-
-private extension DynamicTypeSize {
-    var contentSizeCategory: UIContentSizeCategory {
-        switch self {
-        case .xSmall: .extraSmall
-        case .small: .small
-        case .medium: .medium
-        case .large: .large
-        case .xLarge: .extraLarge
-        case .xxLarge: .extraExtraLarge
-        case .xxxLarge: .extraExtraExtraLarge
-        case .accessibility1: .accessibilityMedium
-        case .accessibility2: .accessibilityLarge
-        case .accessibility3: .accessibilityExtraLarge
-        case .accessibility4: .accessibilityExtraExtraLarge
-        case .accessibility5: .accessibilityExtraExtraExtraLarge
-        @unknown default: .unspecified
         }
     }
 }

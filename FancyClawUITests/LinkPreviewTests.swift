@@ -95,7 +95,6 @@ final class LinkPreviewTests: XCTestCase {
             add(screenshot)
         }
         XCTAssertEqual(valueChanged, .completed, "Expected link previews value \(expected). \(toggle.debugDescription)")
-        XCTAssertTrue(app.staticTexts["settings.linkPreviewExplanation"].exists)
         if let captureName {
             let screenshot = XCTAttachment(screenshot: app.screenshot())
             screenshot.name = captureName
