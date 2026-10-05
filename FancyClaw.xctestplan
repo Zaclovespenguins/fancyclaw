@@ -64,13 +64,6 @@
         "identifier" : "SystemIntegrationTests",
         "name" : "SystemIntegrationTests"
       }
-    },
-    {
-      "target" : {
-        "containerPath" : "container:FancyClaw.xcodeproj",
-        "identifier" : "FC0000000000000000000032",
-        "name" : "FancyClawUITests"
-      }
     }
   ],
   "version" : 1
