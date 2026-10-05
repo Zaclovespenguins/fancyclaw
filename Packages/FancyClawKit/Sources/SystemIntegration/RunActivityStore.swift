@@ -1,9 +1,10 @@
 import Foundation
 import GatewayClient
 import GatewayProtocol
+import Observation
 
 /// One connection-wide listener continues to track runs when the selected chat changes.
-@MainActor public final class RunActivityStore {
+@MainActor @Observable public final class RunActivityStore {
     private let connection: GatewayConnection
     private let driver: any RunActivityDriver
     private let agentName: (String) -> String
@@ -13,6 +14,8 @@ import GatewayProtocol
     private var isStarting = false
     private var generation = UUID()
     public var sessionKeys: Set<String> { Set(tracker.runs.values.map(\.attributes.sessionKey)) }
+    public var activeRuns: [RunActivityTracker.Run] { Array(tracker.runs.values) }
+    public var terminalRunIDs: Set<String> { tracker.terminalRunIDs }
 
     public init(connection: GatewayConnection, driver: any RunActivityDriver, agentName: @escaping (String) -> String) {
         self.connection = connection

@@ -217,4 +217,16 @@ Fixes from `debugging/code-review-2026-10-01.md`; details in the four `debugging
 
 ## Layout redesign (2026-10-02)
 
-Plan: `layout_redesign.md` (slices R1–R7); deferred work in `Future_features.md`. Each redesign deviation, settled choice and verification result lives in its own file under `.claude/deviations/`; add only a one-line pointer here per file.
+- [Accessibility checks deferred](deviations/redesign-accessibility-deferred.md) — Owner-directed removal of audit-only checks; functional coverage retained.
+
+Per-slice deviations and verification for the layout redesign (`layout_redesign.md`, `Future_features.md`) live under `.claude/deviations/`.
+
+- R1 Foundation (theme, tab root, routing, Settings): `.claude/deviations/redesign-r1-foundation.md`
+- R2 Chat restyle (top bar, messages, tool chip, file card, approval card, composer, approval focus fix): `.claude/deviations/redesign-r2-chat.md`
+- R3 Link previews (extraction, bounded metadata memory cache, cards, Settings privacy preference): `.claude/deviations/redesign-r3-link-previews.md`
+- R4 Home (dashboard, frozen acknowledged task retries, approval reviews, running/recent sessions): `.claude/deviations/redesign-r4-home.md`
+- R5 Chats (large-title themed list, date groups, status chips, preserved session management): `.claude/deviations/redesign-r5-chats.md`
+
+- R6 Read-only Skills (pinned source-derived protocol, lifecycle/store, grid/detail): `.claude/deviations/redesign-r6-skills.md`
+- R7 Activity placeholder and final redesign documentation: `.claude/deviations/redesign-r7-activity.md`
+- [Worktree integration into main](deviations/worktree-integration.md): consolidation of Claude Code planning/redesign work and verification of Codex snapshots (2026-10-05).

@@ -3,6 +3,7 @@ import Textual
 
 /// Feature views don't import Textual. Links use SwiftUI's openURL environment action.
 public struct MarkdownText: View {
+    @Environment(\.appTheme) private var theme
     private let markdown: String
     private let baseURL: URL?
     private let imageLoader: @Sendable (URL) async throws -> Data
@@ -16,8 +17,9 @@ public struct MarkdownText: View {
 
     public var body: some View {
         StructuredText(markdown: markdown, baseURL: baseURL, syntaxExtensions: [.math])
+            .font(.body)
             .textual.structuredTextStyle(FancyClawStructuredTextStyle())
-            .textual.highlighterTheme(.default)
+            .textual.highlighterTheme(theme.highlighterTheme)
             .textual.imageAttachmentLoader(GatewayImageAttachmentLoader(load: imageLoader))
             .textual.textSelection(.enabled)
     }

@@ -13,13 +13,20 @@ import TestSupport
 
 @Observable
 final class AppModel {
+    /// The most recently opened conversation. Intents and the demo modes use it; chat screens render the store their route names.
     private(set) var conversation: ConversationStore?
+    let router = AppRouter()
+    let linkPreviewLoader = LinkPreviewLoader()
+    /// `hello.server.version` from the latest handshake, shown in Settings.
+    private(set) var gatewayVersion: String?
     private(set) var sessions: SessionStore?
+    private(set) var skills: SkillStore?
     private(set) var approvals: ApprovalStore?
     private var cache: TranscriptCache?
     private var cacheContainer: ModelContainer?
     private let activityDriver = ActivityKitDriver()
-    private var runActivities: RunActivityStore?
+    private(set) var runActivities: RunActivityStore?
+    private(set) var homeDraft = HomeTaskDraft()
     private var preparationTask: Task<Void, Never>?
     private var conversations: [String: ConversationStore] = [:]
     private(set) var status: ConnectionStatus = .offline
@@ -65,24 +72,72 @@ final class AppModel {
                 isTestMode = true
                 return
             }
-            if ProcessInfo.processInfo.arguments.contains("-FakeGateway") || ProcessInfo.processInfo.arguments.contains("-DemoConversation") || ProcessInfo.processInfo.arguments.contains("-DemoAttachments") || ProcessInfo.processInfo.arguments.contains("-DemoApprovals") || ProcessInfo.processInfo.arguments.contains("-DemoSystemIntegration") {
+            let arguments = ProcessInfo.processInfo.arguments
+            let demoModes = ["-DemoConversation", "-DemoAttachments", "-DemoApprovals", "-DemoSystemIntegration", "-DemoOffline", "-DemoApprovalFocus", "-DemoSessionActionError", "-DemoLinkPreviews", "-DemoHome", "-DemoHomeSendError", "-DemoHomeModelError", "-DemoSessions", "-DemoSessionsEmpty", "-DemoSkills", "-DemoSkillsEmpty", "-DemoSkillsError", "-DemoSkillsOffline"]
+            let isDemo = demoModes.contains(where: arguments.contains)
+            if arguments.contains("-FakeGateway") || isDemo {
                 isTestMode = true
                 let hello = try Fixtures.decode(ResponseFrame<HelloOK>.self, from: "hello-ok.res").payload
                 guard let hello else { throw ConnectionError.missingPayload }
-                let fake = FakeGateway(replies: Array(repeating: .hello(hello), count: 30))
+                let replies = Array(repeating: FakeGateway.Reply.hello(hello), count: 30)
+                let fake = FakeGateway(replies: replies)
                 fake.streamChatReply("Hello from FakeGateway.")
                 fake.enableSessions()
+                // Every debug Gateway supports the read-only skill RPC, avoiding unsolicited timeout errors.
+                fake.reply(to: "skills.status", with: try SkillsDemo.payload())
+                if arguments.contains("-DemoSkillsEmpty") {
+                    fake.reply(to: "skills.status", with: .object(["skills": .array([])]))
+                }
+                if arguments.contains("-DemoSkillsError") {
+                    fake.fail("skills.status", with: .init(code: .forbidden, message: "The demo Gateway refused to read skills."))
+                }
+                if arguments.contains("-DemoSessionActionError") {
+                    fake.fail("sessions.patch", with: .init(code: .forbidden, message: "The demo Gateway rejected the chat change."))
+                }
                 self.fake = fake
                 initialProfile = GatewayProfile(url: try await fake.start(), token: "test-token")
-                if (ProcessInfo.processInfo.arguments.contains("-DemoConversation") || ProcessInfo.processInfo.arguments.contains("-DemoAttachments") || ProcessInfo.processInfo.arguments.contains("-DemoApprovals") || ProcessInfo.processInfo.arguments.contains("-DemoSystemIntegration")), let initialProfile {
+                if isDemo, let initialProfile {
                     let connection = GatewayConnection(identity: .generate())
                     let hello = try await connection.connect(to: initialProfile.url, token: initialProfile.token)
                     await activate(profile: initialProfile, connection: connection, hello: hello)
-                    if ProcessInfo.processInfo.arguments.contains("-DemoSystemIntegration") {
+                    if ["-DemoSkills", "-DemoSkillsEmpty", "-DemoSkillsError", "-DemoSkillsOffline"].contains(where: arguments.contains) {
+                        await skills?.refresh()
+                        router.selectedTab = .skills
+                        if arguments.contains("-DemoSkillsOffline") {
+                            fake.refuseConnections(.init(code: .forbidden, message: "The demo Gateway refused to reconnect."))
+                            fake.dropConnections()
+                        }
+                        return
+                    } else if arguments.contains("-DemoSessions") || arguments.contains("-DemoSessionsEmpty") {
+                        await seedSessionsDemo(empty: arguments.contains("-DemoSessionsEmpty"))
+                        router.selectedTab = .chats
+                        return
+                    } else if arguments.contains("-DemoHome") || arguments.contains("-DemoHomeSendError") || arguments.contains("-DemoHomeModelError") {
+                        await seedHomeDemo()
+                        if arguments.contains("-DemoHomeSendError") {
+                            fake.fail("chat.send", with: .init(code: .forbidden, message: "The demo Gateway rejected this task."))
+                        }
+                        if arguments.contains("-DemoHomeModelError") {
+                            fake.fail("sessions.patch", with: .init(code: .forbidden, message: "The demo Gateway rejected this model."))
+                        }
+                        return
+                    } else if arguments.contains("-DemoOffline") {
+                        // Every automatic retry is refused until the person explicitly chooses Reconnect.
+                        // This remains deterministic even if launch-time availability callbacks arrive late.
+                        fake.refuseConnections(.init(code: .forbidden, message: "The demo Gateway refused to reconnect."))
+                        fake.dropConnections()
+                        return
+                    } else if arguments.contains("-DemoSystemIntegration") {
                         await seedSystemDemo()
-                    } else if ProcessInfo.processInfo.arguments.contains("-DemoApprovals") {
+                    } else if arguments.contains("-DemoApprovalFocus") {
+                        // Opens a long, not-yet-loaded chat focused on its approval card (the approval Review path).
+                        await openApprovalFocusDemo()
+                        return
+                    } else if arguments.contains("-DemoLinkPreviews") {
+                        await seedLinkPreviewDemo()
+                    } else if arguments.contains("-DemoApprovals") {
                         await seedApprovalDemo()
-                    } else if ProcessInfo.processInfo.arguments.contains("-DemoAttachments") {
+                    } else if arguments.contains("-DemoAttachments") {
                         let pipeline = AttachmentPipeline()
                         let image = try await pipeline.prepare(data: AttachmentDemo.imageData(), fileName: "Coast.heic",
                                                                imageRequired: true, limits: hello.policy.attachments)
@@ -90,6 +145,8 @@ final class AppModel {
                                                               limits: hello.policy.attachments)
                         conversation?.draftAttachments = [image, file]
                     } else { await seedRichDemo() }
+                    // Demo modes show the seeded main chat pushed on Home.
+                    await open(sessionKey: SessionKey.main.rawValue)
                 }
                 return
             }
@@ -117,6 +174,58 @@ final class AppModel {
     }
 
     #if DEBUG
+    private func seedSessionsDemo(empty: Bool) async {
+        guard let fake, let sessions else { return }
+        fake.seedSessions(empty ? [] : SessionsDemo.rows())
+        if !empty {
+            fake.seedHistory(SessionsDemo.history, sessionKey: SessionsDemo.runningKey, activeRunID: "sessions-run")
+            let approval = SessionsDemo.approval()
+            fake.requestApproval(approval)
+            approvals?.receive(.init(event: .execApprovalRequested(approval)))
+        }
+        await sessions.refresh()
+    }
+
+    private func seedHomeDemo() async {
+        guard let fake, let sessions else { return }
+        await sessions.loadCatalogs()
+        let rows = [
+            SessionSummary(key: SessionKey.main.rawValue, sessionId: "fake-main", agentId: "main", label: "Weekend plans"),
+            SessionSummary(key: "agent:main:home-running", sessionId: "home-running", agentId: "main", label: "Photo sync", hasActiveRun: true, activeRunIds: ["home-run"]),
+            SessionSummary(key: "agent:main:home-review", sessionId: "home-review", agentId: "main", label: "Date parser"),
+            SessionSummary(key: "agent:main:home-recent", sessionId: "home-recent", agentId: "main", label: "Gateway notes")
+        ]
+        let datedRows = rows.enumerated().map { index, row in
+            var row = row
+            row.updatedAt = Date.now.addingTimeInterval(-Double(index) * 3600).timeIntervalSince1970 * 1000
+            return row
+        }
+        fake.seedSessions(datedRows)
+        fake.seedHistory([ChatMessage(role: .assistant, content: [.text("Your weekend plans are ready.")], metadata: .init(id: "home-main-answer"))], sessionKey: SessionKey.main.rawValue)
+        fake.seedHistory([ChatMessage(role: .assistant, content: [.text("Notes from your Gateway.")], metadata: .init(id: "home-notes-answer"))], sessionKey: "agent:main:home-recent")
+        fake.seedHistory((0..<12).map { ChatMessage(role: .assistant, content: [.text("Date parser investigation, step \($0 + 1).")], metadata: .init(id: "home-review-\($0)")) }, sessionKey: "agent:main:home-review")
+        fake.seedHistory([], sessionKey: "agent:main:home-running", activeRunID: "home-run")
+        await sessions.refresh()
+        await runActivities?.receive(.init(event: .chat(.init(runId: "home-run", sessionKey: "agent:main:home-running", seq: 1, state: .delta(.init(deltaText: "Checking the photo sync."))))))
+        let created = Int(Date.now.timeIntervalSince1970 * 1000)
+        for (id, key, command, preview) in [
+            ("home-approval", Optional("agent:main:home-review"), "git push origin fix/date-parser", "Push fix to photo-sync"),
+            ("home-global-approval", nil, "swift --version", "Check Swift version")
+        ] {
+            let request = ExecApprovalRequest(id: id, createdAtMs: created, expiresAtMs: created + 600_000,
+                request: .init(command: command, commandPreview: preview, allowedDecisions: [.allowOnce, .allowAlways, .deny], sessionKey: key))
+            fake.requestApproval(request)
+            approvals?.receive(.init(event: .execApprovalRequested(request)))
+        }
+    }
+
+    private func seedLinkPreviewDemo() async {
+        guard let conversation, let fake else { return }
+        fake.seedHistory(LinkPreviewDemo.history, sessionKey: conversation.sessionKey, activeRunID: "demo-link-stream")
+        conversation.reconcileHistory(LinkPreviewDemo.history)
+        conversation.receive(LinkPreviewDemo.partialStream(sessionKey: conversation.sessionKey))
+    }
+
     private func seedSystemDemo() async {
         guard let fake else { return }
         fake.seedHistory([ChatMessage(role: .user, content: [.text("Show a Live Activity for this reply.")],
@@ -144,6 +253,25 @@ final class AppModel {
         }
     }
 
+    private func openApprovalFocusDemo() async {
+        guard let fake, let sessions else { return }
+        await sessions.refresh()
+        guard let key = await sessions.create() else { return }
+        fake.seedHistory((0..<30).flatMap { index -> [ChatMessage] in
+            [ChatMessage(role: .user, content: [.text("Question \(index + 1)")], metadata: .init(id: "focus-user-\(index)")),
+             ChatMessage(role: .assistant, content: [.text("Answer \(index + 1). This reply is long enough to take a few lines of the transcript, so the approval at the end starts far from the top of the chat.")],
+                         metadata: .init(id: "focus-assistant-\(index)"))]
+        }, sessionKey: key)
+        let created = Int(Date.now.timeIntervalSince1970 * 1000)
+        fake.requestApproval(.init(id: "demo-focus-approval", createdAtMs: created, expiresAtMs: created + 300_000,
+            request: .init(command: "git push origin fix/date-parser", commandPreview: "Push fix to photo-sync",
+                host: "Gateway", allowedDecisions: [.allowOnce, .allowAlways, .deny], sessionKey: key)))
+        for _ in 0..<60 where approvals?.approvals.contains(where: { $0.id == "demo-focus-approval" }) != true {
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+        await open(sessionKey: key, focusApproval: "demo-focus-approval")
+    }
+
     private func seedRichDemo() async {
         // Seed the fake's canonical history too, so a lifecycle resync retains the showcase.
         guard let conversation, let fake else { return }
@@ -161,6 +289,7 @@ final class AppModel {
             configure(profile: profile, connection: connection)
         }
         status = .connected
+        gatewayVersion = hello.server.version
         await runActivities?.start()
         approvals?.updateScopes(hello.auth.scopes)
         await approvals?.start()
@@ -178,6 +307,7 @@ final class AppModel {
                 guard !Task.isCancelled else { return }
                 self?.status = status
                 if status != .connected {
+                    self?.skills?.connectionDidDisconnect()
                     for store in self?.conversations.values ?? [:].values { store.connectionDidDisconnect() }
                     await self?.runActivities?.connectionDidDisconnect()
                 }
@@ -209,6 +339,8 @@ final class AppModel {
             await self?.invalidateSession(key)
         }
         self.sessions = sessions
+        skills?.clear()
+        skills = SkillStore(connection: connection)
         runActivities = RunActivityStore(connection: connection, driver: activityDriver, agentName: { [weak self] id in
             self?.sessions?.agents.first(where: { $0.id == id })?.name ?? id.capitalized
         })
@@ -221,6 +353,8 @@ final class AppModel {
     private func resync() async {
         if let connection { approvals?.updateScopes(await connection.grantedScopes) }
         approvals?.refreshExpiry()
+        let currentSkills = skills
+        async let skillRefresh: Void = currentSkills?.refresh() ?? ()
         await sessions?.refresh()
         let keys = Set(conversations.keys).union(runActivities?.sessionKeys ?? [])
         for key in keys {
@@ -228,6 +362,7 @@ final class AppModel {
             await store.start()
             await store.refreshHistory()
         }
+        await skillRefresh
     }
 
     func selectSession(_ key: String) async {
@@ -235,6 +370,32 @@ final class AppModel {
         conversation = store
         await store.start()
         await store.refreshHistory()
+    }
+
+    /// Selects the session's store and pushes its chat on the destination tab, then loads it.
+    func open(sessionKey key: String, focusApproval: String? = nil) async {
+        guard let store = conversationStore(for: key) else { return }
+        conversation = store
+        router.openChat(sessionKey: key, focusApproval: focusApproval)
+        await store.start()
+        await store.refreshHistory()
+    }
+
+    /// Approval Review: opens the approval's chat focused on its card. Returns false when it names no session.
+    @discardableResult
+    func review(_ approval: ConversationApproval) async -> Bool {
+        guard let key = approval.sessionKey, !key.isEmpty else { return false }
+        await open(sessionKey: key, focusApproval: approval.id)
+        return true
+    }
+
+    /// The existing store for a routed chat, without creating one (safe to call from a view body).
+    func existingStore(for key: String) -> ConversationStore? { conversations[key] }
+
+    /// Profile host (and port, when explicit) for Settings.
+    var gatewayHost: String? {
+        guard let url = initialProfile?.url, let host = url.host() else { return nil }
+        return url.port.map { "\(host):\($0)" } ?? host
     }
 
     private func conversationStore(for key: String) -> ConversationStore? {
@@ -246,7 +407,46 @@ final class AppModel {
     }
 
     func newChat() async {
-        if let key = await sessions?.create() { await selectSession(key) }
+        if let key = await sessions?.create() { await open(sessionKey: key) }
+    }
+
+    var homeAgentName: String {
+        guard let id = sessions?.defaultAgentID else { return "Assistant" }
+        let name = sessions?.agents.first(where: { $0.id == id })?.name?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let name, !name.isEmpty { return name }
+        return id.capitalized
+    }
+
+    func homeAttachmentLimits() async -> HelloOK.AttachmentLimits? { await connection?.policy?.attachments }
+
+    func refreshHome() async {
+        guard status == .connected else { return }
+        await resync()
+        await sessions?.loadCatalogs()
+    }
+
+    @discardableResult
+    func submitHomeDraft() async -> Bool {
+        guard let sessions else { return false }
+        return await homeDraft.submit(sessions: sessions, connected: status == .connected, send: { [weak self] session, text, uploads, key in
+            guard let self, self.status == .connected, self.sessions === sessions,
+                  let current = sessions.sessions.first(where: { $0.key == session.key }), current.sessionId == session.sessionId,
+                  let store = self.conversationStore(for: session.key) else {
+                throw HomeSendError(message: "The connection or chat changed. Your task is still here.")
+            }
+            await store.start()
+            guard await store.sendAcknowledged(text, attachments: uploads, idempotencyKey: key) else {
+                if Task.isCancelled { throw CancellationError() }
+                throw HomeSendError(message: store.errorMessage ?? "Couldn’t send this task. Retry when the Gateway is connected.")
+            }
+        }, open: { [weak self] key in await self?.open(sessionKey: key) })
+    }
+
+    func editHomeAsNewTask() {
+        if let session = homeDraft.pendingSessionKey, let key = homeDraft.pendingIdempotencyKey {
+            existingStore(for: session)?.pauseAutomaticRetry(idempotencyKey: key)
+        }
+        homeDraft.editAsNewTask()
     }
 
     private func trackHistoryRuns(in store: ConversationStore) {
@@ -274,8 +474,8 @@ final class AppModel {
 
     func askFromIntent(_ text: String) async throws -> String {
         try await requireIntentConnection()
-        await selectSession(SessionKey.main.rawValue)
-        guard let conversation else { throw IntentError.notConnected }
+        await open(sessionKey: SessionKey.main.rawValue)
+        guard let conversation = existingStore(for: SessionKey.main.rawValue) else { throw IntentError.notConnected }
         return try await conversation.ask(text)
     }
 
@@ -284,14 +484,14 @@ final class AppModel {
         guard let sessions, let key = await sessions.create() else {
             throw IntentError.failed(sessions?.errorMessage ?? "Couldn’t create a chat.")
         }
-        await selectSession(key)
+        await open(sessionKey: key)
     }
 
     func openSessionFromIntent(_ entity: SessionEntity) async throws {
         await prepare()
         guard connection != nil else { throw IntentError.notConnected }
         guard try cachedIntentSessions().contains(where: { $0.id == entity.id }) else { throw IntentError.sessionUnavailable }
-        await selectSession(entity.sessionKey)
+        await open(sessionKey: entity.sessionKey)
     }
 
     func openActivityURL(_ url: URL) async {
@@ -306,15 +506,26 @@ final class AppModel {
     }
 
     private func invalidateSession(_ key: String) async {
+        homeDraft.invalidateSession(key)
         await runActivities?.reconcile(sessionKey: key, activeRunIDs: [])
         conversations.removeValue(forKey: key)?.invalidate()
-        guard conversation?.sessionKey == key else { return }
-        let next = sessions?.sessions.contains(where: { $0.key == key }) == true ? key : SessionKey.main.rawValue
-        await selectSession(next)
+        let stillExists = sessions?.sessions.contains(where: { $0.key == key }) == true
+        let isRouted = router.openSessionKeys.contains(key)
+        // A deleted chat leaves every stack; a reset one stays pushed and gets a fresh store.
+        if !stillExists { router.closeChats(for: key) }
+        if conversation?.sessionKey == key {
+            await selectSession(stillExists ? key : SessionKey.main.rawValue)
+        } else if stillExists && isRouted, let store = conversationStore(for: key) {
+            await store.start()
+            await store.refreshHistory()
+        }
     }
 
     func reconnect() async {
         guard !isConnecting else { return }
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-DemoOffline") { fake?.refuseConnections(nil) }
+        #endif
         if let lifecycle {
             await lifecycle.setForeground(false)
             await lifecycle.setForeground(isForeground)
@@ -355,7 +566,12 @@ final class AppModel {
         approvals?.stop()
         approvals = nil
         sessions = nil
+        skills?.clear()
+        skills = nil
         conversation = nil
+        homeDraft = HomeTaskDraft()
+        gatewayVersion = nil
+        router.reset()
         cache = nil
         lifecycle = nil
         connection = nil

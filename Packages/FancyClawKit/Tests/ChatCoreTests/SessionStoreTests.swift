@@ -156,4 +156,41 @@ struct SessionStoreTests {
         await connection.disconnect()
     }
 
+    @Test func visiblePaginationRoutesToRosterOrSearchAndKeepsArchivedRowsHidden() async throws {
+        let fake = try FakeGateway(replies: [.hello(#require(Fixtures.decode(ResponseFrame<HelloOK>.self, from: "hello-ok.res").payload))])
+        fake.reply(to: "sessions.list", withSequence: [
+            try JSONValue(encoding: SessionsListResult(sessions: [SessionSummary(key: "a", label: "Alpha"),
+                SessionSummary(key: "archived", label: "Archived", archived: true)], hasMore: true, nextOffset: 2)),
+            try JSONValue(encoding: SessionsListResult(sessions: [SessionSummary(key: "b", label: "Beta")], hasMore: false)),
+            try JSONValue(encoding: SessionsListResult(sessions: [SessionSummary(key: "remote-1", label: "Remote one")], hasMore: true, nextOffset: 1)),
+            try JSONValue(encoding: SessionsListResult(sessions: [SessionSummary(key: "remote-2", label: "Remote two")], hasMore: false))
+        ])
+        let url = try await fake.start()
+        defer { fake.stop() }
+        let connection = GatewayConnection(identity: .generate())
+        _ = try await connection.connect(to: url, token: "test")
+        let store = SessionStore(connection: connection)
+        await store.loadList()
+        #expect(store.visibleSessions.map(\.key) == ["a"])
+        #expect(store.hasMoreVisibleSessions)
+        await store.loadMoreVisibleSessions()
+        #expect(store.visibleSessions.map(\.key) == ["a", "b"])
+        #expect(!store.hasMoreVisibleSessions)
+        store.search = "Remote"
+        await store.searchSessions()
+        #expect(store.hasMoreVisibleSessions)
+        await store.loadMoreVisibleSessions()
+        #expect(store.visibleSessions.map(\.key) == ["remote-1", "remote-2"])
+        #expect(!store.hasMoreVisibleSessions)
+        let requests = fake.receivedRequests.filter { $0.method == "sessions.list" }
+        try #require(requests.count == 4)
+        #expect(requests.map { $0.params?["offset"]?.intValue } == [0, 2, 0, 1])
+        #expect(requests[0].params?["search"] == nil && requests[1].params?["search"] == nil)
+        #expect(requests[2].params?["search"]?.stringValue == "Remote" && requests[3].params?["search"]?.stringValue == "Remote")
+        store.search = ""
+        await store.searchSessions()
+        #expect(store.visibleSessions.count == 4)
+        await connection.disconnect()
+    }
+
 }

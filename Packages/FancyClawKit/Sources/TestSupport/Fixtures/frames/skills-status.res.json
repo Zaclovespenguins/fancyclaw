@@ -1,0 +1,235 @@
+{
+  "type": "res",
+  "id": "skills-request",
+  "ok": true,
+  "payload": {
+    "workspaceDir": "/fake/workspace",
+    "managedSkillsDir": "/fake/skills",
+    "agentId": "main",
+    "agentSkillFilter": [
+      "GitHub",
+      "Gmail",
+      "Browser",
+      "Obsidian",
+      "Weather"
+    ],
+    "skills": [
+      {
+        "name": "GitHub",
+        "description": "Read repositories, issues and pull requests.",
+        "source": "openclaw-bundled",
+        "bundled": true,
+        "filePath": "/fake/workspace/skills/github/SKILL.md",
+        "baseDir": "/fake/workspace/skills/github",
+        "skillKey": "github",
+        "emoji": "🐙",
+        "always": false,
+        "disabled": false,
+        "blockedByAllowlist": false,
+        "blockedByAgentFilter": false,
+        "eligible": true,
+        "platformIncompatible": false,
+        "modelVisible": true,
+        "userInvocable": true,
+        "commandVisible": true,
+        "requirements": {
+          "bins": [],
+          "anyBins": [],
+          "env": [],
+          "config": [],
+          "os": []
+        },
+        "missing": {
+          "bins": [],
+          "anyBins": [],
+          "env": [],
+          "config": [],
+          "os": []
+        },
+        "configChecks": [],
+        "install": []
+      },
+      {
+        "name": "Gmail",
+        "description": "Read and organize email.",
+        "source": "openclaw-bundled",
+        "bundled": true,
+        "filePath": "/fake/workspace/skills/gmail/SKILL.md",
+        "baseDir": "/fake/workspace/skills/gmail",
+        "skillKey": "gmail",
+        "emoji": "✉️",
+        "always": false,
+        "disabled": true,
+        "blockedByAllowlist": false,
+        "blockedByAgentFilter": false,
+        "eligible": false,
+        "platformIncompatible": false,
+        "modelVisible": false,
+        "userInvocable": true,
+        "commandVisible": false,
+        "requirements": {
+          "bins": [],
+          "anyBins": [],
+          "env": [],
+          "config": [],
+          "os": []
+        },
+        "missing": {
+          "bins": [],
+          "anyBins": [],
+          "env": [],
+          "config": [],
+          "os": []
+        },
+        "configChecks": [],
+        "install": []
+      },
+      {
+        "name": "Browser",
+        "description": "Search and read web pages.",
+        "source": "openclaw-bundled",
+        "bundled": true,
+        "filePath": "/fake/workspace/skills/browser/SKILL.md",
+        "baseDir": "/fake/workspace/skills/browser",
+        "skillKey": "browser",
+        "emoji": "🌐",
+        "always": false,
+        "disabled": false,
+        "blockedByAllowlist": false,
+        "blockedByAgentFilter": false,
+        "eligible": false,
+        "platformIncompatible": false,
+        "modelVisible": false,
+        "userInvocable": true,
+        "commandVisible": false,
+        "requirements": {
+          "bins": [],
+          "anyBins": [
+            "chromium",
+            "google-chrome"
+          ],
+          "env": [],
+          "config": [],
+          "os": []
+        },
+        "missing": {
+          "bins": [],
+          "anyBins": [
+            "chromium",
+            "google-chrome"
+          ],
+          "env": [],
+          "config": [],
+          "os": []
+        },
+        "configChecks": [],
+        "install": []
+      },
+      {
+        "name": "Calendar",
+        "description": "Read upcoming events.",
+        "source": "openclaw-bundled",
+        "bundled": true,
+        "filePath": "/fake/workspace/skills/calendar/SKILL.md",
+        "baseDir": "/fake/workspace/skills/calendar",
+        "skillKey": "calendar",
+        "emoji": "📅",
+        "always": false,
+        "disabled": false,
+        "blockedByAllowlist": false,
+        "blockedByAgentFilter": true,
+        "eligible": true,
+        "platformIncompatible": false,
+        "modelVisible": false,
+        "userInvocable": true,
+        "commandVisible": false,
+        "requirements": {
+          "bins": [],
+          "anyBins": [],
+          "env": [],
+          "config": [],
+          "os": []
+        },
+        "missing": {
+          "bins": [],
+          "anyBins": [],
+          "env": [],
+          "config": [],
+          "os": []
+        },
+        "configChecks": [],
+        "install": []
+      },
+      {
+        "name": "Obsidian",
+        "description": "Find and update notes. Available through user commands.",
+        "source": "openclaw-bundled",
+        "bundled": true,
+        "filePath": "/fake/workspace/skills/obsidian/SKILL.md",
+        "baseDir": "/fake/workspace/skills/obsidian",
+        "skillKey": "obsidian",
+        "emoji": "📓",
+        "always": false,
+        "disabled": false,
+        "blockedByAllowlist": false,
+        "blockedByAgentFilter": false,
+        "eligible": true,
+        "platformIncompatible": false,
+        "modelVisible": false,
+        "userInvocable": true,
+        "commandVisible": true,
+        "requirements": {
+          "bins": [],
+          "anyBins": [],
+          "env": [],
+          "config": [],
+          "os": []
+        },
+        "missing": {
+          "bins": [],
+          "anyBins": [],
+          "env": [],
+          "config": [],
+          "os": []
+        },
+        "configChecks": [],
+        "install": []
+      },
+      {
+        "name": "Weather",
+        "description": "Read the local forecast.",
+        "source": "openclaw-bundled",
+        "bundled": true,
+        "filePath": "/fake/workspace/skills/weather/SKILL.md",
+        "baseDir": "/fake/workspace/skills/weather",
+        "skillKey": "weather",
+        "emoji": "☀️",
+        "always": false,
+        "disabled": false,
+        "blockedByAllowlist": true,
+        "blockedByAgentFilter": false,
+        "eligible": false,
+        "platformIncompatible": false,
+        "modelVisible": false,
+        "userInvocable": true,
+        "commandVisible": false,
+        "requirements": {
+          "bins": [],
+          "anyBins": [],
+          "env": [],
+          "config": [],
+          "os": []
+        },
+        "missing": {
+          "bins": [],
+          "anyBins": [],
+          "env": [],
+          "config": [],
+          "os": []
+        },
+        "configChecks": [],
+        "install": []
+      }
+    ]
+  }
+}

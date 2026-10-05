@@ -37,6 +37,7 @@ const DEFINITIONS = [
   "SessionsResetParams",
   "SessionsDeleteParams",
   "ModelsListParams",
+  "SkillsStatusParams",
   "ExecApprovalResolveParams",
 ];
 

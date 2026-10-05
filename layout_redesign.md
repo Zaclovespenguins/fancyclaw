@@ -1,13 +1,13 @@
 # Layout redesign plan (Direction 1b, dashboard-first)
 
-Date: 2026-10-02. Status: planned, not started.
+Date: 2026-10-02. Implementation status: R1–R7 are implemented and verified as of 2026-10-04. The final full plan passed 349 tests with no failures or skips, and all four tabs' light/dark default/XXL screenshots were reviewed; evidence is in `.claude/deviations/redesign-r7-activity.md`. This document preserves the design decisions and acceptance criteria.
 
 This replaces FancyClaw's chat-as-root layout with the Claude Design handoff's tabbed, dashboard-first layout: **Home, Chats, Skills, Activity**, plus a compose button. The handoff's SwiftUI starter code is reference only (mock data, no networking). Every screen is rebuilt on the existing stores. Deferred work is in `Future_features.md`.
 
 ## Design reference
 
-- Source: the handoff from Claude Design. It currently sits untracked in the main checkout at `.claude/design_handoff_openclaw_ios/`, so worktrees can't see it. Slice R1 copies it into `Design/openclaw-1b/` (excluding the `.zip`). That folder isn't a target folder, so the starter Swift files don't compile into the app.
-- `README.md` has layout, tokens, and copy. `OpenClaw iOS.dc.html` is the visual reference; open it in a browser and use section **1b**. Its 1a artboards are reference only, except the cards the README says to reuse.
+- Source: the tracked handoff in `Design/openclaw-1b/` (copied in R1 without the `.zip`). That folder isn't a target folder, so the starter Swift files don't compile into the app.
+- `Design/openclaw-1b/README.md` has layout, tokens, and copy. `OpenClaw iOS.dc.html` is the visual reference; use section **1b**. Its 1a artboards are reference only, except the cards the README says to reuse.
 
 ## Owner decisions (2026-10-02)
 
@@ -44,7 +44,7 @@ This replaces FancyClaw's chat-as-root layout with the Claude Design handoff's t
   | Mono | `.monospaced()` variants |
 
   Fixed-size layout values (avatars, button circles) use `@ScaledMetric`. Layouts reflow at accessibility sizes, following the existing `ViewThatFits` / `isAccessibilitySize` patterns.
-- **Accessibility.** Keep or replace every existing `accessibilityIdentifier` that the UI tests use, and update the tests in the same slice. Provide labels and values for icon-only controls, keep 44-point targets, and pass contrast in the accessibility audits. Two `PolishTests` contrast failures already exist; the redesign should resolve them, not add more.
+- **Accessibility.** Keep or replace identifiers used by functional UI tests, and update those tests in the same slice. Accessibility-only audits and repair are deferred at the owner's request; see `.claude/deviations/redesign-accessibility-deferred.md`.
 - **Glass.** The deployment floor is iOS 26, so use `.glassEffect` directly and drop the starter's `.ultraThinMaterial` fallback. Use `.interactive()` on tappable glass. Respect Reduce Motion and Reduce Transparency.
 - **No new third-party dependencies.** Link previews use Apple's LinkPresentation framework. Textual stays the Markdown renderer.
 - **Boundaries.** All CLAUDE.md implementation boundaries still apply: Gateway as source of truth, strict outbound encoding, no attachment bytes in the cache, tests only against `FakeGateway`.
@@ -60,8 +60,8 @@ This replaces FancyClaw's chat-as-root layout with the Claude Design handoff's t
 | Chats tab | `SessionsDrawer` (sheet becomes a tab) | `SessionStore` |
 | Chat | `ChatView` and its subviews (restyled) | `ConversationStore`, `ApprovalStore`, `SessionStore` |
 | Settings | `ChatConnectionMenu` | `AppModel` reconnect/disconnect, `@AppStorage` |
-| Skills | (new) | New `skills.status` / `tools.catalog` client |
-| Activity | (new placeholder) | None yet |
+| Skills | (new) | `SkillStore` and `skills.status` read through the Gateway |
+| Activity | (new placeholder) | No data source; `TimelineRow` is preview-only |
 | Onboarding, Live Activity, New Chat Control | Unchanged, except restyling Onboarding with theme tokens | Unchanged |
 
 ---
@@ -196,7 +196,7 @@ Deviation file: `.claude/deviations/redesign-r4-home.md`.
   - Swipe actions and context menu (Rename / Reset / Delete with confirmation), empty and search-empty states, error banner.
 - Rows (from 1a's History artboard): title, time, two-line preview, status chip. "Running" (green) when `hasActiveRun`; "Needs approval" (accent) when `ApprovalStore.pendingCount(for:) > 0`, replacing the terminal-count badge.
 - Toolbar compose button creates a new chat; it's the same action as the tab bar compose button.
-- Tests: migrate the drawer UI tests (identifiers `sessions.*`) and the accessibility audit.
+- Tests: migrate the drawer's functional UI coverage (identifiers `sessions.*`). Accessibility-only audits are deferred per `.claude/deviations/redesign-accessibility-deferred.md`.
 
 Deviation file: `.claude/deviations/redesign-r5-chats.md`.
 
@@ -211,9 +211,9 @@ Deviation file: `.claude/deviations/redesign-r5-chats.md`.
    - `SkillStore` (ChatCore, `@MainActor @Observable`) handles load, refresh on reconnect, search filter, and error state.
    - Tile model: name, description, emoji/letter glyph, brand color from a small known-skill map (else a neutral derived color), tool count if available, and enabled/eligible state.
 3. **UI:**
-   - Large title "Skills" with `.searchable` ("Search skills and tools") and a two-column grid of glass tiles: icon tile, status dot, name, "N tools" and "· Off" for disabled, disabled at 60% opacity.
+   - Large title "Skills" with `.searchable` ("Search skills") and a two-column grid of glass tiles with status and availability. Tool counts and skill-to-tool associations are not reported by `skills.status` and are omitted.
    - No "+" and no toggles.
-   - Tile tap shows a read-only detail sheet (description, status, requirements/missing items if the payload carries them, tool list). The full detail screen is undesigned and deferred.
+   - Tile tap shows a minimal read-only detail sheet (description, status, requirements/missing items, and source facts). The full detail screen and tool list are deferred.
    - Empty, error, and offline states.
 4. **Tests:**
    - Decoding tests from fixtures, including unknown fields and values.
@@ -227,11 +227,11 @@ Deviation file: `.claude/deviations/redesign-r6-skills.md`.
 - Large title "Activity", a native segmented control (Today / Scheduled), ambient background.
 - Each segment shows a `ContentUnavailableView`-style placeholder ("Activity is coming soon"). Today: "A timeline of approvals, runs and replies will appear here." Scheduled: "Scheduled jobs from your Gateway will appear here."
 - Add the timeline row (`TimelineRow`) as a preview-only component, so the later implementation in `Future_features.md` starts from it. Not wired to data.
-- Tests: UI smoke test and accessibility audit for the tab.
+- Tests: `ActivityTests.testTodayAndScheduledPlaceholders` checks both segment states. `ActivityTests.testActivityScreenshotsBothSegmentsLightDarkDefaultAndXXL` captures both segments at light/dark and default/XXL (eight attachments). Accessibility audits are deferred per `.claude/deviations/redesign-accessibility-deferred.md`.
 - **Final redesign pass** (in this slice, after the placeholder):
   - Full test plan.
-  - Light and dark screenshots at default and XXL text sizes for every tab.
-  - Update CLAUDE.md "Current status" and the Layout section with the new app structure.
+  - Light and dark screenshots at default and XXL text sizes for every tab. Home, Chats, Skills, and Activity retain screen-local screenshot tests; the root owns the final all-tabs screenshot review.
+  - Update `CLAUDE.md` Current status and Layout sections with the implemented app structure.
 
 Deviation file: `.claude/deviations/redesign-r7-activity.md`.
 

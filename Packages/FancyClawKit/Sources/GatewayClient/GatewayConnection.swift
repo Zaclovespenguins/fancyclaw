@@ -50,6 +50,12 @@ public actor GatewayConnection {
     }
 
     func fetchImage(_ reference: String) async throws -> Data {
+        try await fetchMedia(reference, imageOnly: true)
+    }
+
+    /// Fetches Gateway media. File downloads (`imageOnly: false`) accept any content type but share the same
+    /// origin, bearer, redirect, and size policy as images.
+    func fetchMedia(_ reference: String, imageOnly: Bool) async throws -> Data {
         guard let origin = mediaOrigin else { throw ConnectionError.disconnected }
         let url = try ArtifactURLResolver.resolve(reference, gateway: origin)
         var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 30)
@@ -57,13 +63,13 @@ public actor GatewayConnection {
         if isGatewayOrigin, let mediaBearer {
             request.setValue("Bearer \(mediaBearer)", forHTTPHeaderField: "Authorization")
         }
-        request.setValue("image/*", forHTTPHeaderField: "Accept")
+        request.setValue(imageOnly ? "image/*" : "*/*", forHTTPHeaderField: "Accept")
         let mediaGeneration = generation
         let mediaSession = isGatewayOrigin ? imageSession : externalImageSession
         let (bytes, response) = try await mediaSession.data(for: request, delegate: MediaRedirectDelegate())
         guard mediaGeneration == generation else { throw CancellationError() }
         guard let response = response as? HTTPURLResponse, (200..<300).contains(response.statusCode),
-              response.mimeType?.hasPrefix("image/") == true else { throw URLError(.badServerResponse) }
+              !imageOnly || response.mimeType?.hasPrefix("image/") == true else { throw URLError(.badServerResponse) }
         guard bytes.count <= 25 * 1024 * 1024 else { throw ConnectionError.frameTooLarge }
         return bytes
     }

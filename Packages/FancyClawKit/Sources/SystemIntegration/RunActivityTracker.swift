@@ -10,6 +10,7 @@ public struct RunActivityTracker: Sendable {
     }
     public private(set) var runs: [String: Run] = [:]
     private var terminalRuns: Set<String> = []
+    public var terminalRunIDs: Set<String> { terminalRuns }
     private var chatSequences: [String: Int] = [:]
     private var agentSequences: [String: Int] = [:]
     public init() {}

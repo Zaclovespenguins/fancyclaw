@@ -1,9 +1,11 @@
+import DesignSystem
 import GatewayProtocol
 import SwiftUI
 
 struct ChatArtifactImage: View {
     let media: ContentBlock.Media
     let load: @Sendable (ContentBlock.Media) async throws -> Data
+    @Environment(\.appTheme) private var theme
     @State private var image: UIImage?
     @State private var failed = false
     @State private var attempt = 0
@@ -17,7 +19,7 @@ struct ChatArtifactImage: View {
         Group {
             if let image {
                 Image(uiImage: image).resizable().scaledToFit()
-                    .clipShape(.rect(cornerRadius: 16))
+                    .clipShape(.rect(cornerRadius: AppTheme.Radius.chatCard))
                     .accessibilityLabel(media.alt ?? media.fileName ?? "Assistant image")
             } else if failed {
                 VStack(spacing: 8) {
@@ -25,10 +27,13 @@ struct ChatArtifactImage: View {
                     Button("Retry image") { attempt += 1 }
                 }
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(theme.textSecondary.color)
                 .frame(maxWidth: .infinity, minHeight: 100)
+                .surface(in: .rect(cornerRadius: AppTheme.Radius.chatCard), opacity: 0.06)
             } else {
-                ProgressView("Loading image").frame(maxWidth: .infinity, minHeight: 100)
+                ProgressView("Loading image")
+                    .frame(maxWidth: .infinity, minHeight: 100)
+                    .surface(in: .rect(cornerRadius: AppTheme.Radius.chatCard), opacity: 0.06)
             }
         }
         .task(id: LoadID(media: media, attempt: attempt)) { await loadImage() }

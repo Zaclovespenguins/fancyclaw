@@ -84,15 +84,40 @@ struct MediaTests {
         #expect(!accepted.withLock { $0 })
         session.invalidateAndCancel()
     }
+
+    @Test func fileDownloadsAcceptNonImageMIMEAndKeepCredentialsOriginBound() async throws {
+        let hello = try #require(Fixtures.decode(ResponseFrame<HelloOK>.self, from: "hello-ok.res").payload)
+        let fake = FakeGateway(replies: [.hello(hello)])
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [ImageRequestProtocol.self]
+        let connection = GatewayConnection(identity: .generate(), session: URLSession(configuration: configuration))
+        let gateway = try await fake.start()
+        defer { fake.stop() }
+        _ = try await connection.connect(to: gateway, token: "test-token")
+        ImageRequestProtocol.requests.withLock { $0 = [] }
+        let data = try await connection.fileData(sessionKey: "main", media: .init(kind: .file, url: "/report.txt"))
+        #expect(data == Data([1, 2, 3]))
+        _ = try await connection.fileData(sessionKey: "main", media: .init(kind: .file, url: "https://cdn.example/report.txt"))
+        let requests = ImageRequestProtocol.requests.withLock { $0 }
+        #expect(requests.count == 2)
+        #expect(requests[0].value(forHTTPHeaderField: "Accept") == "*/*")
+        #expect(requests[0].value(forHTTPHeaderField: "Authorization") == "Bearer test-token")
+        #expect(requests[1].value(forHTTPHeaderField: "Authorization") == nil)
+        #expect(requests.allSatisfy { $0.cachePolicy == .reloadIgnoringLocalCacheData })
+        await #expect(throws: URLError.self) {
+            try await connection.imageData(sessionKey: "main", media: .init(kind: .image, url: "/report.txt"))
+        }
+        await connection.disconnect()
+    }
 }
 
 private final class ImageRequestProtocol: URLProtocol, @unchecked Sendable {
     static let requests = OSAllocatedUnfairLock(initialState: [URLRequest]())
-    override class func canInit(with request: URLRequest) -> Bool { request.value(forHTTPHeaderField: "Accept") == "image/*" }
+    override class func canInit(with request: URLRequest) -> Bool { ["image/*", "*/*"].contains(request.value(forHTTPHeaderField: "Accept") ?? "") }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
         Self.requests.withLock { $0.append(request) }
-        guard let url = request.url, let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: ["Content-Type": "image/png"]) else { return }
+        guard let url = request.url, let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: ["Content-Type": url.pathExtension == "txt" ? "text/plain" : "image/png"]) else { return }
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: Data([1, 2, 3]))
         client?.urlProtocolDidFinishLoading(self)
