@@ -1,9 +1,11 @@
 import ChatCore
+import DesignSystem
 import GatewayProtocol
 import SwiftUI
 
 /// The Chats tab root: the former sessions drawer, now pushed inside the tab's own navigation stack.
 struct SessionsList: View {
+    @Environment(\.appTheme) private var theme
     @Bindable var store: SessionStore
     let approvals: ApprovalStore?
     let selectedKey: String?
@@ -15,25 +17,14 @@ struct SessionsList: View {
     @State private var isCreating = false
 
     private var groups: [(title: String, rows: [SessionSummary])] {
-        let calendar = Calendar.current
-        let rows = store.visibleSessions
-        func group(_ row: SessionSummary) -> Int {
-            if row.pinned == true { return 0 }
-            let date = Date(timeIntervalSince1970: (row.lastActivityAt ?? row.updatedAt ?? 0) / 1000)
-            if calendar.isDateInToday(date) { return 1 }
-            if calendar.isDateInYesterday(date) { return 2 }
-            return 3
-        }
-        return ["Pinned", "Today", "Yesterday", "Earlier"].enumerated().compactMap { index, title in
-            let matching = rows.filter { group($0) == index }
-            return matching.isEmpty ? nil : (title, matching)
-        }
+        SessionListPresentation.groups(store.visibleSessions)
     }
 
     var body: some View {
         List {
             if let error = store.errorMessage {
                 ErrorBanner(message: error) { store.errorMessage = nil }
+                    .listRowBackground(theme.bg.color)
             }
             ForEach(groups, id: \.title) { group in
                 Section {
@@ -41,28 +32,16 @@ struct SessionsList: View {
                         Button {
                             Task { await onSelect(session.key) }
                         } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(session.title ?? "New chat").foregroundStyle(Color.primary)
-                                    if let preview = session.lastMessagePreview {
-                                        Text(preview).font(.caption).foregroundStyle(.secondary).lineLimit(2)
-                                    }
-                                }
-                                Spacer()
-                                if let count = approvals?.pendingCount(for: session.key), count > 0 {
-                                    Label("\(count)", systemImage: "terminal")
-                                        .font(.caption.bold()).foregroundStyle(Color.primary)
-                                        .accessibilityLabel("\(count) pending command approvals")
-                                        .accessibilityIdentifier("sessions.approvals.\(session.key)")
-                                }
-                                if session.key == selectedKey { Image(systemName: "checkmark").accessibilityLabel("Selected") }
-                            }
+                            SessionListRow(session: session, approvalCount: approvals?.pendingCount(for: session.key) ?? 0,
+                                           selected: session.key == selectedKey)
                         }
+                        .buttonStyle(.plain)
+                        .listRowBackground(theme.bg.color.opacity(0.75))
                         .accessibilityIdentifier("sessions.row.\(session.key)")
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             Button("Delete", role: .destructive) { pendingAction = .delete(session) }
-                            Button("Reset", systemImage: "arrow.counterclockwise") { pendingAction = .reset(session) }.tint(.orange)
-                            Button("Rename", systemImage: "pencil") { beginRename(session) }.tint(.blue)
+                            Button("Reset", systemImage: "arrow.counterclockwise") { pendingAction = .reset(session) }.tint(theme.warning.color)
+                            Button("Rename", systemImage: "pencil") { beginRename(session) }.tint(theme.accent.color)
                         }
                         .contextMenu {
                             Button("Rename", systemImage: "pencil") { beginRename(session) }
@@ -71,28 +50,46 @@ struct SessionsList: View {
                         }
                     }
                 } header: {
-                    Text(group.title).foregroundStyle(Color.primary)
+                    Text(group.title)
+                        .font(.title3.bold())
+                        .foregroundStyle(theme.textPrimary.color)
+                        .textCase(nil)
+                        .accessibilityIdentifier("sessions.group.\(group.title)")
                 }
             }
             if store.hasMoreVisibleSessions {
-                Button("Load more chats") { Task { await store.loadMoreVisibleSessions() } }.disabled(store.isLoading || store.isSearching)
+                Button("Load more chats") { Task { await store.loadMoreVisibleSessions() } }
+                    .frame(minHeight: 44)
+                    .disabled(store.isLoading || store.isSearching)
+                    .accessibilityIdentifier("sessions.loadMore")
+                    .listRowBackground(theme.bg.color.opacity(0.75))
             }
-            if store.isLoading || store.isSearching { ProgressView() }
+            if store.isLoading || store.isSearching {
+                ProgressView().frame(maxWidth: .infinity).listRowBackground(theme.bg.color.opacity(0.75))
+            }
         }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background { AmbientGlow() }
+        .foregroundStyle(theme.textPrimary.color)
+        .accessibilityIdentifier("sessions.list")
         .overlay {
             if store.visibleSessions.isEmpty && !store.isLoading && !store.isSearching && store.errorMessage == nil {
                 if store.search.isEmpty {
                     ContentUnavailableView("No chats yet", systemImage: "bubble.left.and.bubble.right",
                         description: Text("Use New chat to start a conversation."))
+                        .accessibilityIdentifier("sessions.empty")
                 } else {
                     ContentUnavailableView.search(text: store.search)
+                        .accessibilityIdentifier("sessions.searchEmpty")
                 }
             }
         }
         .navigationTitle("Chats")
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarTitleDisplayMode(.large)
         .searchable(text: $store.search, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search chats")
         .refreshable { await store.loadList(); await store.searchSessions() }
+        .scrollDismissesKeyboard(.interactively)
         .task(id: store.search) { await store.searchSessions() }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -122,12 +119,7 @@ struct SessionsList: View {
             if let action = pendingAction {
                 Button(action.buttonTitle, role: .destructive) {
                     pendingAction = nil
-                    Task {
-                        switch action {
-                        case .delete(let session): await store.delete(session)
-                        case .reset(let session): await store.reset(session)
-                        }
-                    }
+                    perform(action)
                 }
             }
         } message: {
@@ -136,6 +128,15 @@ struct SessionsList: View {
     }
 
     private func beginRename(_ session: SessionSummary) { newLabel = session.title ?? ""; renaming = session }
+
+    private func perform(_ action: SessionAction) {
+        Task {
+            switch action {
+            case .delete(let session): await store.delete(session)
+            case .reset(let session): await store.reset(session)
+            }
+        }
+    }
 }
 
 private enum SessionAction {

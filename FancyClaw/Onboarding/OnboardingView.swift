@@ -11,9 +11,19 @@ struct OnboardingView: View {
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @AppStorage("hapticsEnabled") private var hapticsEnabled = true
-    @State private var model = OnboardingModel()
+    @State private var model: OnboardingModel
     @State private var selectedNearby: GatewayProfile?
     @State private var showingScanner = false
+
+    init(
+        onConnected: @escaping (GatewayProfile, GatewayConnection, HelloOK) -> Void,
+        initialProfile: GatewayProfile? = nil
+    ) {
+        self.onConnected = onConnected
+        self.initialProfile = initialProfile
+        // The native page controller must receive the intended page on its first render.
+        _model = State(initialValue: OnboardingModel(initialProfile: initialProfile))
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -67,13 +77,6 @@ struct OnboardingView: View {
             }
             .task {
                 model.onConnected = onConnected
-                if let initialProfile {
-                    model.urlText = initialProfile.url.absoluteString
-                    model.token = initialProfile.token ?? ""
-                    model.password = initialProfile.password ?? ""
-                    model.usesEphemeralIdentity = true
-                    model.selectedPage = 1
-                }
             }
             .onChange(of: model.selectedPage) { _, page in
                 if page == 2 && initialProfile == nil { model.startDiscovery() }
@@ -252,6 +255,16 @@ struct OnboardingView: View {
     private let retrySchedule = PairingRetrySchedule()
     private var identityStore = DeviceIdentityStore()
     private let profileStore = GatewayProfileStore()
+
+    init(initialProfile: GatewayProfile?) {
+        if let initialProfile {
+            urlText = initialProfile.url.absoluteString
+            token = initialProfile.token ?? ""
+            password = initialProfile.password ?? ""
+            usesEphemeralIdentity = true
+            selectedPage = 1
+        }
+    }
 
     var isConnecting: Bool {
         switch state { case .connecting, .waiting: true; default: false }

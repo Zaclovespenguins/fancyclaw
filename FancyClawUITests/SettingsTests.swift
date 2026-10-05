@@ -35,8 +35,15 @@ final class SettingsTests: XCTestCase {
         confirm.tap()
         // Disconnecting leaves the tab shell for onboarding.
         let connect = app.buttons["onboarding.connect"]
-        XCTAssertTrue(connect.waitForExistence(timeout: 10))
+        let setup = app.buttons["Set up connection"]
+        let onboardingReady = app.buttons.matching(NSPredicate(
+            format: "identifier == %@ OR label == %@", "onboarding.connect", "Set up connection"
+        )).firstMatch
+        XCTAssertTrue(onboardingReady.waitForExistence(timeout: 10))
         XCTAssertFalse(app.tabBar.exists)
+        // A forgotten connection can return to the welcome screen; follow its real setup action.
+        if setup.exists { setup.tap() }
+        XCTAssertTrue(connect.waitForExistence(timeout: 10))
     }
 
     @MainActor private func waitFor(_ element: XCUIElement, value: String, timeout: TimeInterval) -> Bool {

@@ -72,7 +72,7 @@ final class AppModel {
                 return
             }
             let arguments = ProcessInfo.processInfo.arguments
-            let demoModes = ["-DemoConversation", "-DemoAttachments", "-DemoApprovals", "-DemoSystemIntegration", "-DemoOffline", "-DemoApprovalFocus", "-DemoSessionActionError", "-DemoLinkPreviews", "-DemoHome", "-DemoHomeSendError", "-DemoHomeModelError"]
+            let demoModes = ["-DemoConversation", "-DemoAttachments", "-DemoApprovals", "-DemoSystemIntegration", "-DemoOffline", "-DemoApprovalFocus", "-DemoSessionActionError", "-DemoLinkPreviews", "-DemoHome", "-DemoHomeSendError", "-DemoHomeModelError", "-DemoSessions", "-DemoSessionsEmpty"]
             let isDemo = demoModes.contains(where: arguments.contains)
             if arguments.contains("-FakeGateway") || isDemo {
                 isTestMode = true
@@ -91,7 +91,11 @@ final class AppModel {
                     let connection = GatewayConnection(identity: .generate())
                     let hello = try await connection.connect(to: initialProfile.url, token: initialProfile.token)
                     await activate(profile: initialProfile, connection: connection, hello: hello)
-                    if arguments.contains("-DemoHome") || arguments.contains("-DemoHomeSendError") || arguments.contains("-DemoHomeModelError") {
+                    if arguments.contains("-DemoSessions") || arguments.contains("-DemoSessionsEmpty") {
+                        await seedSessionsDemo(empty: arguments.contains("-DemoSessionsEmpty"))
+                        router.selectedTab = .chats
+                        return
+                    } else if arguments.contains("-DemoHome") || arguments.contains("-DemoHomeSendError") || arguments.contains("-DemoHomeModelError") {
                         await seedHomeDemo()
                         if arguments.contains("-DemoHomeSendError") {
                             fake.fail("chat.send", with: .init(code: .forbidden, message: "The demo Gateway rejected this task."))
@@ -153,6 +157,18 @@ final class AppModel {
     }
 
     #if DEBUG
+    private func seedSessionsDemo(empty: Bool) async {
+        guard let fake, let sessions else { return }
+        fake.seedSessions(empty ? [] : SessionsDemo.rows())
+        if !empty {
+            fake.seedHistory(SessionsDemo.history, sessionKey: SessionsDemo.runningKey, activeRunID: "sessions-run")
+            let approval = SessionsDemo.approval()
+            fake.requestApproval(approval)
+            approvals?.receive(.init(event: .execApprovalRequested(approval)))
+        }
+        await sessions.refresh()
+    }
+
     private func seedHomeDemo() async {
         guard let fake, let sessions else { return }
         await sessions.loadCatalogs()
