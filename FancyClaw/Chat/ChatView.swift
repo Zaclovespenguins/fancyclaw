@@ -88,6 +88,7 @@ struct ChatView: View {
             .clipped()
             .scrollPosition($scrollPosition)
             .defaultScrollAnchor(.bottom)
+            .scrollDismissesKeyboard(.interactively)
             .accessibilityIdentifier("chat.transcript")
             // Flat theme base: the ambient glow behind transcript text made the accessibility audit's contrast fail.
             .background { theme.bg.color.ignoresSafeArea() }

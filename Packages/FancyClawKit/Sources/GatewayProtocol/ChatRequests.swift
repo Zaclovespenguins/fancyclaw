@@ -188,6 +188,31 @@ public enum ChatHistoryCatchUp: Hashable, Sendable {
             self.sessionInfo = sessionInfo
             self.inFlightRun = inFlightRun
         }
+
+        private enum CodingKeys: String, CodingKey {
+            case messages, deltaCursor, sessionInfo, inFlightRun
+        }
+
+        private enum EnvelopeKeys: String, CodingKey { case message }
+
+        public init(from decoder: any Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            var entries = try container.nestedUnkeyedContainer(forKey: .messages)
+            messages = []
+            while !entries.isAtEnd {
+                let entry = try entries.superDecoder()
+                let envelope = try entry.container(keyedBy: EnvelopeKeys.self)
+                // Cursor results in the pinned Gateway carry session.message envelopes; pages carry bare messages.
+                // Accept the older bare-message delta shape too, without hiding malformed inner messages.
+                let message = envelope.contains(.message)
+                    ? try envelope.decode(ChatMessage.self, forKey: .message)
+                    : try ChatMessage(from: entry)
+                messages.append(message)
+            }
+            deltaCursor = try container.decode(String.self, forKey: .deltaCursor)
+            sessionInfo = try container.decodeIfPresent(ChatSessionInfo.self, forKey: .sessionInfo)
+            inFlightRun = try container.decodeIfPresent(JSONValue.self, forKey: .inFlightRun)
+        }
     }
 }
 

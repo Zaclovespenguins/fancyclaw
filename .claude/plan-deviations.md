@@ -230,3 +230,10 @@ Per-slice deviations and verification for the layout redesign (`layout_redesign.
 - R6 Read-only Skills (pinned source-derived protocol, lifecycle/store, grid/detail): `.claude/deviations/redesign-r6-skills.md`
 - R7 Activity placeholder and final redesign documentation: `.claude/deviations/redesign-r7-activity.md`
 - [Worktree integration into main](deviations/worktree-integration.md): consolidation of Claude Code planning/redesign work and verification of Codex snapshots (2026-10-05).
+
+## Chat completion, history catch-up, and keyboard dismissal (2026-10-05)
+
+- Cursor history in the pinned Gateway contains session-message envelopes, unlike full-page history. Decode the inner message while preserving legacy bare-message support; FakeGateway now emits the real cursor shape.
+- Concrete history activity snapshots exclude locally completed runs. Boolean-only activity during terminal persistence no longer reopens a completed chat; initial activity, alternate run recovery, and yielded finals remain supported.
+- The chat transcript uses SwiftUI interactive keyboard dismissal.
+- Official Xcode MCP app/extension test build succeeded with zero errors. All seven package targets passed **321 tests, 0 failures, 0 skips**; UI tests remained excluded. Device/gesture confirmation is pending because Xcode's required device-interaction skill is unavailable. Diagnosis, regression evidence, and result paths: `debugging/chat-completion-and-history-catch-up.md`.

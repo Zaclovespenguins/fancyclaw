@@ -96,7 +96,7 @@ public final class ConversationStore {
                     self.deltaCursor = delta.deltaCursor
                     reconcileHistory(canonicalHistory)
                     // A snapshot that raced live events must not overwrite the run state they established.
-                    if revision == transcriptRevision { updateRunState(delta.sessionInfo) }
+                    if revision == transcriptRevision { updateRunState(delta.sessionInfo, inFlightRun: delta.inFlightRun) }
                     errorMessage = nil
                     try persistHistory()
                     scheduleFollowUpIfStale(since: revision)
@@ -177,15 +177,32 @@ public final class ConversationStore {
         hasMoreHistory = page.hasMore == true && page.nextOffset != nil
         nextOffset = page.nextOffset
         reconcileHistory(page.messages)
-        if appliesRunState { updateRunState(page.sessionInfo) }
+        if appliesRunState { updateRunState(page.sessionInfo, inFlightRun: page.inFlightRun) }
     }
 
-    private func updateRunState(_ info: ChatSessionInfo?) {
+    private func updateRunState(_ info: ChatSessionInfo?, inFlightRun: JSONValue?) {
         guard let info else { return }
-        if let ids = info.activeRunIds { onRunSnapshot?(Set(ids)) }
-        else if info.hasActiveRun == false { onRunSnapshot?([]) }
-        isStreaming = info.hasActiveRun == true
-        activeRunID = info.activeRunIds?.first
+        if let ids = info.activeRunIds {
+            // A history read can overlap terminal persistence even after the final event arrived.
+            let liveIDs = ids.filter { runs[$0]?.isTerminal != true }
+            onRunSnapshot?(Set(liveIDs))
+            isStreaming = !liveIDs.isEmpty
+            if activeRunID.map({ liveIDs.contains($0) }) != true { activeRunID = liveIDs.first }
+        } else if info.hasActiveRun == false {
+            onRunSnapshot?([])
+            isStreaming = false
+            activeRunID = nil
+        } else if info.hasActiveRun == true, let id = inFlightRun?["runId"]?.stringValue {
+            let isLive = runs[id]?.isTerminal != true
+            onRunSnapshot?(isLive ? [id] : [])
+            isStreaming = isLive
+            activeRunID = isLive ? id : nil
+        } else if info.hasActiveRun == true, runs.isEmpty {
+            // On initial load, recover activity even when the Gateway doesn't expose a run ID.
+            isStreaming = true
+        }
+        // A boolean-only active flag also includes terminal persistence. Once live events established
+        // local state, preserve it until the snapshot identifies a run or explicitly reports inactivity.
         if !isStreaming {
             for index in messages.indices { messages[index].isStreaming = false }
         }

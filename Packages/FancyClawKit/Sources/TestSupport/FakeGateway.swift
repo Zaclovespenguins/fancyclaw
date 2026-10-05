@@ -381,7 +381,12 @@ public final class FakeGateway: @unchecked Sendable {
                 let info = ChatSessionInfo(key: key, hasActiveRun: activeRuns.values.contains(key),
                     activeRunIds: activeRuns.filter { $0.value == key }.map(\.key))
                 if request.params?["cursor"] != nil {
-                    return try JSONValue(encoding: ChatHistoryCatchUp.delta(.init(messages: history, deltaCursor: "cursor:\(cursorVersion)", sessionInfo: info)))
+                    // Match the pinned Gateway's cursor response, which wraps each message in a session envelope.
+                    let envelopes = try history.map { message in
+                        JSONValue.object(["sessionKey": .string(key), "message": try JSONValue(encoding: message)])
+                    }
+                    return .object(["kind": .string("delta"), "messages": .array(envelopes),
+                        "deltaCursor": .string("cursor:\(cursorVersion)"), "sessionInfo": try JSONValue(encoding: info)])
                 }
                 return try JSONValue(encoding: ChatHistoryPage(sessionKey: key,
                     sessionId: sessionRows.first(where: { $0.key == key })?.sessionId,

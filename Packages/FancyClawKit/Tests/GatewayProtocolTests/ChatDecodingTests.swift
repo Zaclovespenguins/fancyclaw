@@ -124,6 +124,22 @@ struct ChatDecodingTests {
         #expect(try decode(ChatHistoryCatchUp.self, #"{"kind":"rewound"}"#) == .unknown("rewound"))
     }
 
+    @Test func historyCatchUpUnwrapsSessionMessageEnvelopes() throws {
+        let result = try decode(ChatHistoryCatchUp.self, #"{"kind":"delta","deltaCursor":"next","messages":[{"sessionKey":"s","messageId":"entry","runId":"r","message":{"role":"assistant","content":[{"type":"text","text":"Done"}],"__openclaw":{"id":"entry","runId":"r"}}}]}"#)
+        guard case .delta(let delta) = result else { Issue.record("Expected delta"); return }
+        #expect(delta.messages.map(\.role) == [.assistant])
+        #expect(delta.messages.first?.content == [.text("Done")])
+        #expect(delta.messages.first?.entryId == "entry")
+        #expect(delta.messages.first?.metadata?.runId == "r")
+        #expect(delta.deltaCursor == "next")
+    }
+
+    @Test func malformedHistoryEnvelopeStillFailsDecoding() {
+        #expect(throws: DecodingError.self) {
+            try decode(ChatHistoryCatchUp.self, #"{"kind":"delta","deltaCursor":"next","messages":[{"message":{"content":"Missing role"}}]}"#)
+        }
+    }
+
     @Test(arguments: ["toolCall", "tool_use", "tooluse", "tool_call"])
     func toolCallSpellings(type: String) throws {
         let block = try decode(ContentBlock.self, #"{"type":"\#(type)","id":"c1","name":"exec","arguments":{}}"#)

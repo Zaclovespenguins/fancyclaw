@@ -1,4 +1,4 @@
-import ChatCore
+@testable import ChatCore
 import Foundation
 import GatewayClient
 import GatewayProtocol
@@ -191,6 +191,97 @@ struct ConversationRaceTests {
         #expect(store.isStreaming)
         #expect(store.messages.last?.isStreaming == true)
         #expect(!snapshots.contains([]))
+        await connection.disconnect()
+    }
+
+    @Test(arguments: [nil, ["run"], []] as [[String]?])
+    func historyDoesNotReopenACompletedRun(activeRunIDs: [String]?) {
+        let store = ConversationStore(connection: GatewayConnection(identity: .generate()), streamingInterval: .zero)
+        store.receive(chat(store, seq: 1, .delta(.init(deltaText: "Done"))))
+        store.receive(chat(store, seq: 2, .final(.init())))
+        var snapshots: [Set<String>] = []
+        store.onRunSnapshot = { snapshots.append($0) }
+        // The Gateway can still report activity while terminal state is being persisted.
+        store.applyPage(.init(sessionKey: store.sessionKey, messages: [],
+            sessionInfo: .init(key: store.sessionKey, hasActiveRun: true, activeRunIds: activeRunIDs)))
+        #expect(!store.isStreaming)
+        #expect(store.messages.allSatisfy { !$0.isStreaming })
+        #expect(!snapshots.contains(["run"]))
+    }
+
+    @Test func historyCanDiscoverAnotherRunAfterCompletion() {
+        let store = ConversationStore(connection: GatewayConnection(identity: .generate()), streamingInterval: .zero)
+        store.receive(chat(store, seq: 1, .delta(.init(deltaText: "Done"))))
+        store.receive(chat(store, seq: 2, .final(.init())))
+        var snapshot: Set<String> = []
+        store.onRunSnapshot = { snapshot = $0 }
+        store.applyPage(.init(sessionKey: store.sessionKey, messages: [],
+            sessionInfo: .init(key: store.sessionKey, hasActiveRun: true, activeRunIds: ["run", "other"])))
+        #expect(store.isStreaming)
+        #expect(snapshot == ["other"])
+        store.receive(chat(store, run: "other", seq: 1, .final(.init())))
+        #expect(!store.isStreaming)
+    }
+
+    @Test(arguments: ["run", "other"])
+    func historyRecoveryUsesTheInFlightRunIdentity(runID: String) {
+        let store = ConversationStore(connection: GatewayConnection(identity: .generate()), streamingInterval: .zero)
+        store.receive(chat(store, seq: 1, .delta(.init(deltaText: "Done"))))
+        store.receive(chat(store, seq: 2, .final(.init())))
+        var snapshot: Set<String> = []
+        store.onRunSnapshot = { snapshot = $0 }
+        store.applyPage(.init(sessionKey: store.sessionKey, messages: [],
+            sessionInfo: .init(key: store.sessionKey, hasActiveRun: true),
+            inFlightRun: ["runId": .string(runID)]))
+        #expect(store.isStreaming == (runID == "other"))
+        #expect(snapshot == (runID == "other" ? ["other"] : []))
+        store.receive(chat(store, run: "other", seq: 1, .final(.init())))
+        #expect(!store.isStreaming)
+    }
+
+    @Test func booleanOnlyHistoryRecoversInitialActivityAndPreservesAYieldedRun() {
+        let store = ConversationStore(connection: GatewayConnection(identity: .generate()), streamingInterval: .zero)
+        let page = ChatHistoryPage(sessionKey: store.sessionKey, messages: [],
+            sessionInfo: .init(key: store.sessionKey, hasActiveRun: true))
+        store.applyPage(page)
+        #expect(store.isStreaming)
+        store.receive(chat(store, seq: 1, .delta(.init(deltaText: "Still working"))))
+        store.receive(chat(store, seq: 2, .final(.init(yielded: true))))
+        store.applyPage(page)
+        #expect(store.isStreaming)
+        store.receive(chat(store, seq: 3, .final(.init())))
+        #expect(!store.isStreaming)
+        store.applyPage(page)
+        #expect(!store.isStreaming)
+    }
+
+    @Test func completedFirstReplyCatchesUpFromEnvelopedHistory() async throws {
+        let fake = try gateway()
+        let key = "agent:main:new-chat"
+        let envelope: JSONValue = ["sessionKey": .string(key), "messageId": "answer", "runId": "run",
+            "message": ["role": "assistant", "content": "Done", "__openclaw": ["id": "answer", "runId": "run"]]]
+        fake.reply(to: "chat.history", withSequence: [
+            try JSONValue(encoding: ChatHistoryPage(sessionKey: key, sessionId: "new", messages: [],
+                sessionInfo: .init(key: key, hasActiveRun: false), deltaCursor: "before")),
+            ["kind": "delta", "deltaCursor": "after", "messages": .array([envelope]),
+                "sessionInfo": ["key": .string(key), "hasActiveRun": false, "activeRunIds": []]]
+        ])
+        fake.reply(to: "chat.send", with: try JSONValue(encoding: ChatSendResponse(runId: "run", status: .started)))
+        defer { fake.stop() }
+        let connection = GatewayConnection(identity: .generate())
+        _ = try await connection.connect(to: fake.start(), token: "test-token")
+        let store = ConversationStore(connection: connection, sessionKey: key, streamingInterval: .zero)
+        await store.refreshHistory()
+        #expect(await store.send("Hello"))
+        #expect(store.isStreaming)
+        store.receive(chat(store, seq: 1, .delta(.init(deltaText: "Done"))))
+        store.receive(chat(store, seq: 2, .final(.init())))
+        await store.refreshHistory()
+        #expect(store.errorMessage == nil)
+        #expect(!store.isStreaming)
+        #expect(store.deltaCursor == "after")
+        #expect(store.messages.filter { $0.role == .assistant }.map(\.text) == ["Done"])
+        #expect(store.messages.first(where: { $0.role == .assistant })?.id == "answer")
         await connection.disconnect()
     }
 
