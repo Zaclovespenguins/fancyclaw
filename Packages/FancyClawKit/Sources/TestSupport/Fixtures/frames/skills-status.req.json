@@ -1,0 +1,9 @@
+{
+  "type": "req",
+  "id": "skills-request",
+  "method": "skills.status",
+  "params": {
+    "agentId": "main",
+    "sessionKey": "agent:main:main"
+  }
+}

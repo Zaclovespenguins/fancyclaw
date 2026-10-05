@@ -226,3 +226,5 @@ Per-slice deviations and verification for the layout redesign (`layout_redesign.
 - R3 Link previews (extraction, bounded metadata memory cache, cards, Settings privacy preference): `.claude/deviations/redesign-r3-link-previews.md`
 - R4 Home (dashboard, frozen acknowledged task retries, approval reviews, running/recent sessions): `.claude/deviations/redesign-r4-home.md`
 - R5 Chats (large-title themed list, date groups, status chips, preserved session management): `.claude/deviations/redesign-r5-chats.md`
+
+- R6 Read-only Skills (pinned source-derived protocol, lifecycle/store, grid/detail): `.claude/deviations/redesign-r6-skills.md`

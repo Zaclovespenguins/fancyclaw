@@ -1,6 +1,7 @@
 import ChatCore
 import DesignSystem
 import GatewayClient
+import GatewayProtocol
 import SwiftUI
 import SystemIntegration
 
@@ -41,8 +42,11 @@ struct RootView: View {
             .badge(model.approvals?.pendingCount() ?? 0)
             Tab("Skills", systemImage: "square.grid.2x2", value: Selection.tab(.skills)) {
                 stack(.skills) {
-                    TabPlaceholderView(title: "Skills", systemImage: "square.grid.2x2",
-                                       message: "Skills from your Gateway will appear here.")
+                    if let skills = model.skills {
+                        SkillsView(store: skills, isConnected: model.status == .connected,
+                                   onReconnect: { await model.reconnect() })
+                            .id(ObjectIdentifier(skills))
+                    }
                 }
             }
             Tab("Activity", systemImage: "waveform.path.ecg", value: Selection.tab(.activity)) {
@@ -77,8 +81,12 @@ struct RootView: View {
         case .settings:
             SettingsView(model: model)
                 .toolbar(.visible, for: .navigationBar)
-        case .skill:
-            TabPlaceholderView(title: "Skill", systemImage: "square.grid.2x2", message: "Skill details are coming soon.")
+        case .skill(let id):
+            if let skill = model.skills?.skills.first(where: { $0.id == id }) {
+                SkillDetailView(skill: skill, isStale: model.skills?.isStale == true)
+            } else {
+                ContentUnavailableView("Skill unavailable", systemImage: "square.grid.2x2")
+            }
         }
     }
 

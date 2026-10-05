@@ -20,6 +20,7 @@ final class AppModel {
     /// `hello.server.version` from the latest handshake, shown in Settings.
     private(set) var gatewayVersion: String?
     private(set) var sessions: SessionStore?
+    private(set) var skills: SkillStore?
     private(set) var approvals: ApprovalStore?
     private var cache: TranscriptCache?
     private var cacheContainer: ModelContainer?
@@ -72,7 +73,7 @@ final class AppModel {
                 return
             }
             let arguments = ProcessInfo.processInfo.arguments
-            let demoModes = ["-DemoConversation", "-DemoAttachments", "-DemoApprovals", "-DemoSystemIntegration", "-DemoOffline", "-DemoApprovalFocus", "-DemoSessionActionError", "-DemoLinkPreviews", "-DemoHome", "-DemoHomeSendError", "-DemoHomeModelError", "-DemoSessions", "-DemoSessionsEmpty"]
+            let demoModes = ["-DemoConversation", "-DemoAttachments", "-DemoApprovals", "-DemoSystemIntegration", "-DemoOffline", "-DemoApprovalFocus", "-DemoSessionActionError", "-DemoLinkPreviews", "-DemoHome", "-DemoHomeSendError", "-DemoHomeModelError", "-DemoSessions", "-DemoSessionsEmpty", "-DemoSkills", "-DemoSkillsEmpty", "-DemoSkillsError", "-DemoSkillsOffline"]
             let isDemo = demoModes.contains(where: arguments.contains)
             if arguments.contains("-FakeGateway") || isDemo {
                 isTestMode = true
@@ -82,6 +83,14 @@ final class AppModel {
                 let fake = FakeGateway(replies: replies)
                 fake.streamChatReply("Hello from FakeGateway.")
                 fake.enableSessions()
+                // Every debug Gateway supports the read-only skill RPC, avoiding unsolicited timeout errors.
+                fake.reply(to: "skills.status", with: try SkillsDemo.payload())
+                if arguments.contains("-DemoSkillsEmpty") {
+                    fake.reply(to: "skills.status", with: .object(["skills": .array([])]))
+                }
+                if arguments.contains("-DemoSkillsError") {
+                    fake.fail("skills.status", with: .init(code: .forbidden, message: "The demo Gateway refused to read skills."))
+                }
                 if arguments.contains("-DemoSessionActionError") {
                     fake.fail("sessions.patch", with: .init(code: .forbidden, message: "The demo Gateway rejected the chat change."))
                 }
@@ -91,7 +100,15 @@ final class AppModel {
                     let connection = GatewayConnection(identity: .generate())
                     let hello = try await connection.connect(to: initialProfile.url, token: initialProfile.token)
                     await activate(profile: initialProfile, connection: connection, hello: hello)
-                    if arguments.contains("-DemoSessions") || arguments.contains("-DemoSessionsEmpty") {
+                    if ["-DemoSkills", "-DemoSkillsEmpty", "-DemoSkillsError", "-DemoSkillsOffline"].contains(where: arguments.contains) {
+                        await skills?.refresh()
+                        router.selectedTab = .skills
+                        if arguments.contains("-DemoSkillsOffline") {
+                            fake.refuseConnections(.init(code: .forbidden, message: "The demo Gateway refused to reconnect."))
+                            fake.dropConnections()
+                        }
+                        return
+                    } else if arguments.contains("-DemoSessions") || arguments.contains("-DemoSessionsEmpty") {
                         await seedSessionsDemo(empty: arguments.contains("-DemoSessionsEmpty"))
                         router.selectedTab = .chats
                         return
@@ -290,6 +307,7 @@ final class AppModel {
                 guard !Task.isCancelled else { return }
                 self?.status = status
                 if status != .connected {
+                    self?.skills?.connectionDidDisconnect()
                     for store in self?.conversations.values ?? [:].values { store.connectionDidDisconnect() }
                     await self?.runActivities?.connectionDidDisconnect()
                 }
@@ -321,6 +339,8 @@ final class AppModel {
             await self?.invalidateSession(key)
         }
         self.sessions = sessions
+        skills?.clear()
+        skills = SkillStore(connection: connection)
         runActivities = RunActivityStore(connection: connection, driver: activityDriver, agentName: { [weak self] id in
             self?.sessions?.agents.first(where: { $0.id == id })?.name ?? id.capitalized
         })
@@ -333,6 +353,8 @@ final class AppModel {
     private func resync() async {
         if let connection { approvals?.updateScopes(await connection.grantedScopes) }
         approvals?.refreshExpiry()
+        let currentSkills = skills
+        async let skillRefresh: Void = currentSkills?.refresh() ?? ()
         await sessions?.refresh()
         let keys = Set(conversations.keys).union(runActivities?.sessionKeys ?? [])
         for key in keys {
@@ -340,6 +362,7 @@ final class AppModel {
             await store.start()
             await store.refreshHistory()
         }
+        await skillRefresh
     }
 
     func selectSession(_ key: String) async {
@@ -543,6 +566,8 @@ final class AppModel {
         approvals?.stop()
         approvals = nil
         sessions = nil
+        skills?.clear()
+        skills = nil
         conversation = nil
         homeDraft = HomeTaskDraft()
         gatewayVersion = nil

@@ -86,6 +86,9 @@ struct FixtureCase: Sendable, CustomTestStringConvertible {
         .response("sessions-list.res", SessionsListResult.self),
         .event("sessions-changed-message.event"),
         .event("sessions-changed-lifecycle.event"),
+        // Skills: source-derived result (the pinned schema only defines request params).
+        .request("skills-status.req", SkillsStatusParams.self, body: "SkillsStatusParams"),
+        .response("skills-status.res", SkillsStatusResult.self),
         // Approvals
         .event("exec-approval-requested.event"),
         .event("exec-approval-resolved.event"),
