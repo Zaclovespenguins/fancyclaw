@@ -8,18 +8,18 @@ A SwiftUI iOS operator client for a single OpenClaw Gateway. `PLAN.md` holds the
 
 `debugging/` holds investigation notes with concise, descriptive filenames and titles (for example, `session-event-decoding.md`, titled “Session event decoding failure”). Each note starts with its title, date, and status, then has **Summary** (symptoms, evidence, and cause; distinguish observations from inference), **Suggested triage** (next diagnostic and verification steps), and **Actual fix**. Leave **Actual fix** blank until the agent that fixes the issue fills it in with a short description of the implemented correction and verification results. Keep proposed fixes in **Suggested triage** and update the note's status once verified. Read relevant notes before investigating a matching issue.
 
-## Current status (2026-09-30)
+## Current status (2026-10-04)
 
-- Slices 0–11 are implemented: project/protocol, identity/handshake, onboarding, connection recovery, streaming chat, history/session management/private cache, rich output, attachments, exec approvals, system integration, and polish.
-- Slice 11 includes optional haptics, error banners, accessibility/Dynamic Type fixes, a layered Icon Composer icon, and `FancyClawUITests/PolishTests.swift`. Choices and verification are recorded in the deviations log.
-- Latest full-suite verification is Slice 11 on iPhone 18 Pro / iOS 27.0: **190 passed, 0 failures, 0 skips** (177 Swift Testing + 13 UI tests). Logs and the initial launch measurement are linked in the deviations entry.
+- Original implementation slices 0–11 are complete. The dashboard redesign R1–R7 is implemented: Home, Chats, Skills, Activity, a detached compose action, per-tab navigation, restyled chat and Settings. Skills is read-only; Activity is an empty Today/Scheduled placeholder with no Gateway data.
+- Latest full-plan verification is the completed redesign on iPhone 18 Pro / iOS 27.0: **349 passed, 0 failures, 0 skips** (310 Swift Testing + 39 UI tests). The app/extension build has zero errors, and all 32 Home/Chats/Skills/Activity light/dark default/XXL screenshots were reviewed. Evidence is recorded in `.claude/deviations/redesign-r7-activity.md`.
+- Accessibility-only audit and repair are deferred at the owner's request. Functional UI assertions and light/dark default/XXL screenshots remain; see `.claude/deviations/redesign-accessibility-deferred.md`.
 - Personal Team/personal use; no ordinary widgets, launcher widget, App Group, or TestFlight scope. The extension hosts only the New Chat Control and Live Activity. SwiftData is app-private.
 - Physical haptic feedback, device provisioning, camera/Bonjour behavior, real Gateway uploads/pairing/reconnect, local-authentication prompts, spoken Siri/Spotlight, and Control Center gallery placement still need device/live checks. Only iOS 27.0 is installed here; the iOS 26 deployment floor remains unverified.
 
 ## Layout
 
 - `FancyClaw.xcodeproj`: app (`FancyClaw/`), WidgetKit extension (`FancyClawWidgets/`), UI tests (`FancyClawUITests/`). It uses folder-synchronized groups, so new files in those folders join their target automatically. Don't edit `project.pbxproj` per file or re-run scaffolding. Open this project directly, not a separate workspace.
-- `FancyClaw/AppModel.swift`: app routing, connection lifecycle, per-session conversation stores, cache, approvals, and intent/activity coordination. `FancyClaw/SystemIntegration/` owns shortcut phrases and the concrete ActivityKit driver.
+- `FancyClaw/AppModel.swift`: app routing, connection lifecycle, per-session conversation stores, cache, approvals, skills, and intent/activity coordination. App UI is grouped under `FancyClaw/Home/`, `Sessions/`, `Skills/`, `Activity/`, `Chat/`, and `Settings/`; `FancyClaw/Root/RootView.swift` hosts the tab shell. `FancyClaw/SystemIntegration/` owns shortcut phrases and the concrete ActivityKit driver.
 - `Packages/FancyClawKit`: iOS-only local package (Swift tools 6.2, Swift 6 language mode) holding testable logic; module responsibilities are listed below.
 - `Config/`: `Shared.xcconfig` (team, bundle-ID prefix, versions, deployment target), Info.plist fragments merged into generated plists, and empty entitlement files. This synchronized group belongs to no target; don't add it to resource membership.
 - `FancyClaw.xctestplan`: the shared scheme's test plan. It runs all **seven package test targets** plus `FancyClawUITests`; there is no app-level `FancyClawTests` target. `SystemActions` is covered by `SystemIntegrationTests`. **When you add a package test target, add it here too.**
@@ -27,11 +27,11 @@ A SwiftUI iOS operator client for a single OpenClaw Gateway. `PLAN.md` holds the
 
 | Module | Responsibility |
 | --- | --- |
-| `GatewayProtocol` | Pure Codable frames/models, tolerant decoding, strict outbound encoding; protocol 4, OpenClaw 2026.9.6. |
+| `GatewayProtocol` | Pure Codable frames/models, tolerant decoding, strict outbound encoding; protocol 4, OpenClaw 2026.9.6, including read-only Skills status. |
 | `GatewayClient` | Socket actor, identity/Keychain, handshake, pairing/discovery, transport/media policy, lifecycle and injected timing. |
-| `ChatCore` | Conversation/session/approval stores, history, streaming/throttle, attachment preparation, idempotent outbox. |
+| `ChatCore` | Conversation/session/approval/skills stores, history, streaming/throttle, attachment preparation, idempotent outbox, and skill presentation. |
 | `Persistence` | `CachedSession`, `CachedMessage`, `CachedHistory`, and private SwiftData `TranscriptCache`. |
-| `DesignSystem` | Markdown styling, code-block chrome, image-loader adapter, spacing; only module directly depending on Textual. |
+| `DesignSystem` | Theme tokens, ambient glow, glass/surface helpers, Markdown styling, code-block chrome, image-loader adapter, spacing; only module directly depending on Textual. |
 | `TestSupport` | Ephemeral loopback `FakeGateway`, schema/frame fixtures, deterministic demo helpers. |
 | `SystemActions` | Shared New Chat action/intent, destination, ActivityKit attributes and session URLs; no cache/Gateway dependency. |
 | `SystemIntegration` | App-only Ask/Open intents, cached session entities/query, activity reducer/store and driver interface. |
@@ -66,7 +66,7 @@ Use Apple's official Xcode MCP server for builds, tests, device interaction, deb
 
 The package imports iOS frameworks; host `swift test` is not the full-suite workflow. Run package tests through the simulator test plan.
 
-Debug launch modes are implemented in `AppModel.prepareOnce()`: `-OnboardingPreview` bypasses saved profiles; `-FakeGateway` shows onboarding with an ephemeral manual endpoint; `-DemoConversation`, `-DemoAttachments`, `-DemoApprovals`, and `-DemoSystemIntegration` connect and seed the relevant screen. `LaunchArgument` currently lists only a subset. `-PolishLight` and `-PolishDark` force appearance for checks, combined with a debug mode and optional `-UIPreferredContentSizeCategoryName UICTContentSizeCategoryXXL`.
+Debug launch modes are implemented in `AppModel.prepareOnce()`: `-OnboardingPreview` bypasses saved profiles; `-FakeGateway` shows onboarding with an ephemeral manual endpoint. FakeGateway demos cover Conversation, Attachments, Approvals, System Integration, Offline/Approval Focus/Session Action Error, Link Previews, Home (including send/model errors), Sessions (including empty), and Skills (including empty/error/offline). `LaunchArgument` lists only a subset. `-PolishLight` and `-PolishDark` force appearance for checks, combined with a debug mode and optional `-UIPreferredContentSizeCategoryName UICTContentSizeCategoryXXL`.
 
 Disk space fluctuates; check `df -h .` before expensive build/test cycles rather than relying on old estimates. If a build hits "No space left on device", stop and tell the owner. Don't delete DerivedData, caches, or simulators.
 

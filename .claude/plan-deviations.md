@@ -228,3 +228,4 @@ Per-slice deviations and verification for the layout redesign (`layout_redesign.
 - R5 Chats (large-title themed list, date groups, status chips, preserved session management): `.claude/deviations/redesign-r5-chats.md`
 
 - R6 Read-only Skills (pinned source-derived protocol, lifecycle/store, grid/detail): `.claude/deviations/redesign-r6-skills.md`
+- R7 Activity placeholder and final redesign documentation: `.claude/deviations/redesign-r7-activity.md`

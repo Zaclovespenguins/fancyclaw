@@ -50,10 +50,7 @@ struct RootView: View {
                 }
             }
             Tab("Activity", systemImage: "waveform.path.ecg", value: Selection.tab(.activity)) {
-                stack(.activity) {
-                    TabPlaceholderView(title: "Activity", systemImage: "waveform.path.ecg",
-                                       message: "A timeline of approvals, runs and replies will appear here.")
-                }
+                stack(.activity) { ActivityView() }
             }
             // iOS 26 draws the search role as a detached glass circle; it starts a new chat instead of searching.
             Tab(value: Selection.compose, role: .search) {

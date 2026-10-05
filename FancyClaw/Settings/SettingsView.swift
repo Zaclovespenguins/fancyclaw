@@ -96,7 +96,7 @@ struct SettingsView: View {
             }
 
             Section {
-                // A read-only row until more themes exist; a disabled Picker fails the accessibility audit.
+                // A read-only row until more themes exist.
                 LabeledContent("Theme", value: themeID.displayName)
                     .accessibilityIdentifier("settings.theme")
             } header: {

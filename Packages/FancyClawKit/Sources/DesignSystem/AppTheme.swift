@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-/// The themes a person can pick. Only Coral exists today; Settings shows a disabled picker for more.
+/// The themes a person can pick. Only Coral exists today; Settings displays it as a read-only value.
 public enum ThemeID: String, CaseIterable, Identifiable, Sendable {
     case coral
 

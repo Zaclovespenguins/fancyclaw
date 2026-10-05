@@ -1,6 +1,6 @@
 # Future features
 
-Work deliberately left out of the layout redesign (`layout_redesign.md`). Each entry says why it was deferred and what it would take. The design reference is the Claude Design handoff (Direction 1b). Until Slice R1 copies it into `Design/openclaw-1b/`, it lives untracked in the main checkout at `.claude/design_handoff_openclaw_ios/`.
+Work deliberately left out of the layout redesign (`layout_redesign.md`). Each entry says why it was deferred and what it would take. The tracked design reference is `Design/openclaw-1b/` (Direction 1b), copied in Slice R1.
 
 ## Skills: install and enable/disable (the "+" button and tile toggles)
 
@@ -21,7 +21,7 @@ Work deliberately left out of the layout redesign (`layout_redesign.md`). Each e
 
 ## Activity: live timeline with a local cache
 
-**Status:** Slice R7 ships a placeholder tab. It has the segmented control and empty states, and no data.
+**Status:** Slice R7 ships the Activity placeholder with Today and Scheduled segments and empty states. It has no timeline or scheduled-job data; the preview-only `TimelineRow` is not wired to a store.
 
 **Design:** See handoff `README.md` §4 "Activity", `SwiftUI/ActivityView.swift`, and the "Activity · timeline" artboard in `OpenClaw iOS.dc.html` (section 1b).
 
@@ -81,7 +81,7 @@ Work deliberately left out of the layout redesign (`layout_redesign.md`). Each e
 - **Chat "Share" action.** The design's ••• menu has Share, but there's no backend for it. It could export the loaded transcript as Markdown text through `ShareLink`. Omitted in R2.
 - **Theme picker.** R1 adds the theme infrastructure and a placeholder row in Settings, with only the default (coral) theme. Adding themes means defining new `AppTheme` token sets (light and dark variants each) and enabling the picker.
 - **Running card progress.** Home's Running cards show a spinner only. A timer (from the run's `startedAt`) or real progress would need a Gateway progress signal, which the pinned release doesn't send.
-- **Skill detail screen.** Not designed yet. R6 tiles don't navigate anywhere, or show a minimal read-only detail if the `skills.status` data supports it.
+- **Full Skill detail screen.** R6 ships a minimal read-only detail sheet from Skills tiles. A full detail screen is not designed; additions such as an install flow, tools list, and permissions remain deferred.
 
 ## Accessibility audit follow-up
 
