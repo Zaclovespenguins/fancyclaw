@@ -1,0 +1,109 @@
+name: UI screenshots
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ui-screenshots-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  screenshots:
+    runs-on: xcode-27
+    timeout-minutes: 60
+    env:
+      DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select an available iPhone simulator
+        id: simulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          xcodebuild -version | tee artifacts/xcode-version.txt
+          xcrun simctl list devices available --json > artifacts/simulators.json
+          python3 - <<'PY'
+          import json, os
+          devices = json.load(open("artifacts/simulators.json"))["devices"]
+          candidates = []
+          for runtime, rows in devices.items():
+              if ".iOS-27-" not in runtime:
+                  continue
+              version = tuple(int(part) for part in runtime.split(".iOS-")[1].split("-"))
+              for device in rows:
+                  if device.get("isAvailable") and device["name"].startswith("iPhone"):
+                      # Prefer the handoff's Pro-size iPhone over a random device.
+                      priority = 2 if device["name"] == "iPhone 18 Pro" else 1 if device["name"] == "iPhone 17 Pro" else 0
+                      candidates.append((priority, version, device["name"], device["udid"], runtime))
+          if not candidates:
+              raise SystemExit("No available iOS 27 iPhone simulator. Check the runner image's installed runtimes.")
+          _, _, name, udid, runtime = max(candidates)
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"udid={udid}\n")
+          with open("artifacts/destination.txt", "w") as output:
+              output.write(f"{name} / {runtime} / {udid}\n")
+          print(f"Selected {name} on {runtime}: {udid}")
+          PY
+
+      - name: Build and run existing screenshot tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild test \
+            -project FancyClaw.xcodeproj \
+            -scheme FancyClaw \
+            -testPlan FancyClawScreenshots \
+            -configuration Debug \
+            -destination 'platform=iOS Simulator,id=${{ steps.simulator.outputs.udid }}' \
+            -destination-timeout 180 \
+            -parallel-testing-enabled NO \
+            -resultBundlePath artifacts/FancyClawScreenshots.xcresult \
+            CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee artifacts/xcodebuild.log
+
+      - name: Export screenshots (including successful tests)
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! -d artifacts/FancyClawScreenshots.xcresult ]]; then
+            echo "No test result bundle was produced; inspect xcodebuild.log."
+            exit 0
+          fi
+          xcrun xcresulttool export attachments \
+            --path artifacts/FancyClawScreenshots.xcresult \
+            --output-path artifacts/screenshots
+          # Do not use --only-failures: the design screenshots are keepAlways attachments.
+          if ! find artifacts/screenshots -type f -iname '*.png' -print -quit | grep -q .; then
+            echo '::error::No PNG screenshots were exported. Inspect the test result bundle and log.'
+            exit 1
+          fi
+
+      - name: Upload screenshot PNGs and attachment manifest
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: fancyclaw-ui-screenshots-${{ github.run_id }}
+          path: artifacts/screenshots/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload test bundle and build diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: fancyclaw-ui-test-results-${{ github.run_id }}
+          path: |
+            artifacts/FancyClawScreenshots.xcresult
+            artifacts/xcodebuild.log
+            artifacts/xcode-version.txt
+            artifacts/destination.txt
+            artifacts/simulators.json
+          if-no-files-found: warn
+          retention-days: 14
