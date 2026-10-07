@@ -141,8 +141,10 @@ final class PolishTests: XCTestCase {
         capture(app, "Quick attachment composer - light default")
         app.openChatsTab()
         XCTAssertTrue(app.sessionRow(titled: "Main chat").waitForExistence(timeout: 5))
-        waitForStableFrame(app.sessionRow(titled: "Main chat"))
-        waitForStableFrame(app.searchFields["Search chats"])
+        XCTAssertTrue(app.searchFields["Search chats"].waitForExistence(timeout: 5))
+        // Capture visible content, not tap readiness; the selected row can be non-hittable.
+        // Navigation actions already wait for idle. Allow a short final visual settle.
+        Thread.sleep(forTimeInterval: 2)
         capture(app, "Quick chats tab - light default")
         app.terminate()
 
@@ -166,7 +168,7 @@ final class PolishTests: XCTestCase {
         capture(app, "Quick markdown - light default")
         app.goBackToTab()
         XCTAssertTrue(app.buttons["home.settings"].waitForExistence(timeout: 5))
-        waitForStableFrame(app.buttons["home.settings"])
+        Thread.sleep(forTimeInterval: 2)
         capture(app, "Quick home - light default")
         app.buttons["home.settings"].tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
