@@ -123,6 +123,65 @@ final class PolishTests: XCTestCase {
         }
     }
 
+    /// A lean design pass: all key screens in light mode at the default text size.
+    @MainActor
+    func testQuickScreenshots() throws {
+        var app = launch("-OnboardingPreview")
+        XCTAssertTrue(app.buttons["Set up connection"].waitForExistence(timeout: 10))
+        capture(app, "Quick onboarding - light default")
+        app.buttons["Set up connection"].tap()
+        XCTAssertTrue(app.buttons["onboarding.connect"].waitForExistence(timeout: 5))
+        app.buttons["onboarding.connect"].tap()
+        XCTAssertTrue(app.buttons["Dismiss error"].waitForExistence(timeout: 5))
+        capture(app, "Quick connection error - light default")
+        app.terminate()
+
+        app = launch("-DemoAttachments")
+        XCTAssertTrue(app.buttons["Remove Coast.jpg"].waitForExistence(timeout: 10))
+        capture(app, "Quick attachment composer - light default")
+        app.openChatsTab()
+        XCTAssertTrue(app.sessionRow(titled: "Main chat").waitForExistence(timeout: 5))
+        waitForStableFrame(app.sessionRow(titled: "Main chat"))
+        waitForStableFrame(app.searchFields["Search chats"])
+        capture(app, "Quick chats tab - light default")
+        app.terminate()
+
+        for mode in [
+            ("-DemoApprovals", "approval.deny.demo-approval", "approvals"),
+            ("-DemoApprovalFocus", "approval.deny.demo-focus-approval", "approval focus"),
+        ] {
+            app = launch(mode.0)
+            XCTAssertTrue(app.buttons[mode.1].waitForExistence(timeout: 10))
+            Thread.sleep(forTimeInterval: 2)
+            capture(app, "Quick \(mode.2) - light default")
+            app.terminate()
+        }
+
+        app = launch("-DemoConversation")
+        let chip = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "chat.toolchip.")).firstMatch
+        XCTAssertTrue(chip.waitForExistence(timeout: 10))
+        capture(app, "Quick conversation rich output - light default")
+        app.scrollViews["chat.transcript"].swipeDown()
+        app.scrollViews["chat.transcript"].swipeDown()
+        capture(app, "Quick markdown - light default")
+        app.goBackToTab()
+        XCTAssertTrue(app.buttons["home.settings"].waitForExistence(timeout: 5))
+        waitForStableFrame(app.buttons["home.settings"])
+        capture(app, "Quick home - light default")
+        app.buttons["home.settings"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        capture(app, "Quick settings - light default")
+        app.swipeUp()
+        capture(app, "Quick settings about - light default")
+        app.goBackToTab()
+        for tab in ["Skills", "Activity"] {
+            app.selectTab(tab)
+            XCTAssertTrue(app.navigationBars[tab].waitForExistence(timeout: 5))
+            capture(app, "Quick \(tab) placeholder - light default")
+        }
+        app.terminate()
+    }
+
     @MainActor
     func testLaunchPerformance() {
         let app = XCUIApplication()
