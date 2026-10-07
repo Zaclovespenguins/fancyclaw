@@ -3,6 +3,15 @@ name: UI screenshots
 on:
   push:
   workflow_dispatch:
+    inputs:
+      test-scope:
+        description: Lean 13-shot design pass or the original full PolishTests plan
+        type: choice
+        required: true
+        default: quick-screenshots
+        options:
+          - quick-screenshots
+          - full-suite
 
 permissions:
   contents: read
@@ -51,15 +60,30 @@ jobs:
           print(f"Selected {name} on {runtime}: {udid}")
           PY
 
-      - name: Build and run existing screenshot tests
+      - name: Build and capture selected screenshots
         shell: bash
+        env:
+          TEST_SCOPE: ${{ inputs.test-scope || 'quick-screenshots' }}
         run: |
           set -euo pipefail
+          test_filters=()
+          case "$TEST_SCOPE" in
+            quick-screenshots)
+              test_filters=(-only-testing:FancyClawUITests/PolishTests/testQuickScreenshots)
+              ;;
+            full-suite)
+              # Keep the original seven-method PolishTests plan without duplicating the quick pass.
+              test_filters=(-skip-testing:FancyClawUITests/PolishTests/testQuickScreenshots)
+              ;;
+            *) echo "::error::Unknown test scope: $TEST_SCOPE"; exit 1 ;;
+          esac
+          echo "Test scope: $TEST_SCOPE" | tee artifacts/test-scope.txt
           xcodebuild test \
             -project FancyClaw.xcodeproj \
             -scheme FancyClaw \
             -testPlan FancyClawScreenshots \
             -configuration Debug \
+            "${test_filters[@]}" \
             -destination 'platform=iOS Simulator,id=${{ steps.simulator.outputs.udid }}' \
             -destination-timeout 180 \
             -parallel-testing-enabled NO \
@@ -105,5 +129,6 @@ jobs:
             artifacts/xcode-version.txt
             artifacts/destination.txt
             artifacts/simulators.json
+            artifacts/test-scope.txt
           if-no-files-found: warn
           retention-days: 14
