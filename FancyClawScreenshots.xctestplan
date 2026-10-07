@@ -1,0 +1,29 @@
+{
+  "configurations": [
+    {
+      "id": "BF86B6C5-D53E-4BD7-80E7-C5D3EB805EA2",
+      "name": "Default",
+      "options": {}
+    }
+  ],
+  "defaultOptions": {
+    "targetForVariableExpansion": {
+      "containerPath": "container:FancyClaw.xcodeproj",
+      "identifier": "FC0000000000000000000030",
+      "name": "FancyClaw"
+    }
+  },
+  "testTargets": [
+    {
+      "target": {
+        "containerPath": "container:FancyClaw.xcodeproj",
+        "identifier": "FC0000000000000000000032",
+        "name": "FancyClawUITests"
+      },
+      "selectedTests": [
+        "PolishTests"
+      ]
+    }
+  ],
+  "version": 1
+}
